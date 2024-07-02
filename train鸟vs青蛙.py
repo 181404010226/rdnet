@@ -1,0 +1,234 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision
+import torchvision.transforms as transforms
+import numpy as np
+import time
+import argparse
+import random
+from PIL import Image
+
+# 设置随机种子
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+    random.seed(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+# 在代码开始处调用设置随机种子函数
+set_seed(0)
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--name', type=str, default="ConvMixer")
+
+
+parser.add_argument('--hdim', default=256, type=int)
+parser.add_argument('--depth', default=8, type=int)
+parser.add_argument('--psize', default=2, type=int)
+parser.add_argument('--conv-ks', default=5, type=int)
+
+parser.add_argument('--batch-size', default=512, type=int)
+parser.add_argument('--scale', default=1.0, type=float)
+parser.add_argument('--reprob', default=0.2, type=float)
+parser.add_argument('--ra-m', default=12, type=int)
+parser.add_argument('--ra-n', default=2, type=int)
+parser.add_argument('--jitter', default=0.2, type=float)
+
+parser.add_argument('--wd', default=0.005, type=float)
+parser.add_argument('--clip-norm', action='store_true')
+# 120epoch，以平衡训练量
+parser.add_argument('--epochs', default=120, type=int)
+parser.add_argument('--lr-max', default=0.05, type=float)
+parser.add_argument('--workers', default=4, type=int)
+
+
+class CustomCIFAR10(torchvision.datasets.CIFAR10):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # CIFAR-10 class labels
+        self.bird = 2  # bird
+        self.frog = 6  # frog
+        
+        # Filter and restructure the dataset
+        self.filtered_data = []
+        self.filtered_targets = []
+        
+        for img, target in zip(self.data, self.targets):
+            if target in [self.bird, self.frog]:
+                # 添加四份，以平衡数据集
+                self.filtered_data.append(img)
+                self.filtered_targets.append(0 if target == self.bird else 1)
+                self.filtered_data.append(img)
+                self.filtered_targets.append(0 if target == self.bird else 1)
+                self.filtered_data.append(img)
+                self.filtered_targets.append(0 if target == self.bird else 1)
+                self.filtered_data.append(img)
+                self.filtered_targets.append(0 if target == self.bird else 1)
+        
+        # Replace original data and targets
+        self.data = self.filtered_data
+        self.targets = self.filtered_targets
+
+    def __getitem__(self, index):
+        img, target = self.data[index], self.targets[index]
+        if self.transform is not None:
+            img = self.transform(Image.fromarray(img))
+        return img, target
+
+    def __len__(self):
+        return len(self.data)
+
+if __name__ == '__main__':
+
+    args = parser.parse_args()
+
+
+    class Residual(nn.Module):
+        def __init__(self, fn):
+            super().__init__()
+            self.fn = fn
+
+        def forward(self, x):
+            return self.fn(x) + x
+
+
+    def ConvMixer(dim, depth, kernel_size=5, patch_size=2, n_classes=10):
+        return nn.Sequential(
+            nn.Conv2d(3, dim, kernel_size=patch_size, stride=patch_size),
+            nn.GELU(),
+            nn.BatchNorm2d(dim),
+            *[nn.Sequential(
+                    Residual(nn.Sequential(
+                        nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same"),
+                        nn.GELU(),
+                        nn.BatchNorm2d(dim)
+                    )),
+                    nn.Conv2d(dim, dim, kernel_size=1),
+                    nn.GELU(),
+                    nn.BatchNorm2d(dim)
+            ) for i in range(depth)],
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(),
+            nn.Linear(dim, n_classes)
+        )
+
+
+    cifar10_mean = (0.4914, 0.4822, 0.4465)
+    cifar10_std = (0.2471, 0.2435, 0.2616)
+
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(32, scale=(args.scale, 1.0), ratio=(1.0, 1.0)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandAugment(num_ops=args.ra_n, magnitude=args.ra_m),
+        transforms.ColorJitter(args.jitter, args.jitter, args.jitter),
+        transforms.ToTensor(),
+        transforms.Normalize(cifar10_mean, cifar10_std),
+        transforms.RandomErasing(p=args.reprob)
+    ])
+
+    test_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(cifar10_mean, cifar10_std)
+    ])
+
+
+    trainset = CustomCIFAR10(root='./data', train=True,
+                            download=True, transform=train_transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size,
+                                            shuffle=True, num_workers=args.workers)
+
+    testset = CustomCIFAR10(root='./data', train=False,
+                            download=True, transform=test_transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
+                                            shuffle=False, num_workers=args.workers)
+
+
+
+    model = ConvMixer(args.hdim, args.depth, patch_size=args.psize, kernel_size=args.conv_ks, n_classes=2)
+    model = nn.DataParallel(model).cuda()
+
+
+    lr_schedule = lambda t: np.interp([t], [0, args.epochs*2//5, args.epochs*4//5, args.epochs], 
+                                    [0, args.lr_max, args.lr_max/20.0, 0])[0]
+
+    opt = optim.AdamW(model.parameters(), lr=args.lr_max, weight_decay=args.wd)
+    criterion = nn.CrossEntropyLoss()
+    scaler = torch.cuda.amp.GradScaler()
+
+
+    for epoch in range(args.epochs):
+        start = time.time()
+        train_loss, train_acc, n = 0, 0, 0
+        for i, (X, y) in enumerate(trainloader):
+            model.train()
+            X, y = X.cuda(), y.cuda()
+
+            lr = lr_schedule(epoch + (i + 1)/len(trainloader))
+            opt.param_groups[0].update(lr=lr)
+
+            opt.zero_grad()
+            with torch.cuda.amp.autocast():
+                output = model(X)
+                loss = criterion(output, y)
+
+            scaler.scale(loss).backward()
+            if args.clip_norm:
+                scaler.unscale_(opt)
+                nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            scaler.step(opt)
+            scaler.update()
+            
+            train_loss += loss.item() * y.size(0)
+            train_acc += (output.max(1)[1] == y).sum().item()
+            n += y.size(0)
+            
+        model.eval()
+        # Create directory if it doesn't exist
+        import os
+        current_file_name = os.path.splitext(os.path.basename(__file__))[0]
+        save_dir = os.path.join('./data', current_file_name)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+            
+        test_acc, m = 0, 0
+        with torch.no_grad():
+            for i, (X, y) in enumerate(testloader):
+                X, y = X.cuda(), y.cuda()
+                with torch.cuda.amp.autocast():
+                    output = model(X)
+                test_acc += (output.max(1)[1] == y).sum().item()
+                m += y.size(0)
+
+        if epoch == args.epochs - 1:
+            for i, (X, y) in enumerate(testloader):
+                X, y = X.cuda(), y.cuda()
+                with torch.cuda.amp.autocast():
+                    output = model(X)
+                preds = output.max(1)[1]
+                for j in range(X.size(0)):
+                    img = X[j].cpu().numpy().transpose(1, 2, 0)
+                    img = (img * cifar10_std + cifar10_mean) * 255.0
+                    img = img.astype(np.uint8)
+                    label = y[j].item()
+                    pred = preds[j].item()
+                    correct = 'yes' if label == pred else 'no'
+
+                    prob = torch.softmax(output[j], dim=0)[pred].item()
+                    unique_id = f'{i}_{j}'
+                    img_filename = os.path.join(save_dir, f'{pred}_{prob:.4f}_{unique_id}_{correct}.png')
+                    
+                    from PIL import Image
+                    Image.fromarray(img).save(img_filename)
+
+
+        print(f'[{args.name}] Epoch: {epoch} | Train Acc: {train_acc/n:.4f}, Test Acc: {test_acc/m:.4f}, Time: {time.time() - start:.1f}, lr: {lr:.6f}')
+        
+        # Save the model with the test accuracy in the filename
+        model_filename = os.path.join(save_dir, f'model_{test_acc/m:.4f}_epoch{epoch}.pth')
+        torch.save(model.state_dict(), model_filename)
+
+

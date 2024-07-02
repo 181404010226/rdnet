@@ -1,3 +1,7 @@
+data/
+CIFAR10RawData/
+images/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

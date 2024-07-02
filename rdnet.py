@@ -395,3 +395,41 @@ def rdnet_large(pretrained=False, **kwargs):
     }
     model = _create_rdnet("rdnet_large", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
+
+@register_model
+def rdnet_tiny_cifar(pretrained=False, **kwargs):
+    n_layer = 7
+    model_args = {
+        "num_init_features": 64,
+        "growth_rates": [64] + [104] + [128] * 4 + [224],
+        "num_blocks_list": [3] * n_layer,
+        "is_downsample_block": (None, True, True, False, False, False, True),
+        "transition_compression_ratio": 0.5,
+        "block_type": ["Block"] + ["Block"] + ["BlockESE"] * 4 + ["BlockESE"],
+        "num_classes": 10,  # CIFAR-10 has 10 classes
+    }
+    model = _create_rdnet("rdnet_tiny_cifar", pretrained=pretrained, **dict(model_args, **kwargs))
+    
+    # Modify the stem for CIFAR-10 (32x32 images)
+    model.stem = PatchifyStem(3, model_args["num_init_features"], patch_size=2)
+    
+    return model
+
+@register_model
+def rdnet_tiny_tree(pretrained=False, **kwargs):
+    n_layer = 7
+    model_args = {
+        "num_init_features": 64,
+        "growth_rates": [64] + [104] + [128] * 4 + [224],
+        "num_blocks_list": [3] * n_layer,
+        "is_downsample_block": (None, True, True, False, False, False, True),
+        "transition_compression_ratio": 0.5,
+        "block_type": ["Block"] + ["Block"] + ["BlockESE"] * 4 + ["BlockESE"],
+        "num_classes": 1,  # CIFAR-10 has 10 classes
+    }
+    model = _create_rdnet("rdnet_tiny_cifar", pretrained=pretrained, **dict(model_args, **kwargs))
+    
+    # Modify the stem for CIFAR-10 (32x32 images)
+    # model.stem = PatchifyStem(3, model_args["num_init_features"], patch_size=4)
+    
+    return model
