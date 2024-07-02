@@ -34,15 +34,15 @@ parser.add_argument('--conv-ks', default=5, type=int)
 parser.add_argument('--batch-size', default=512, type=int)
 parser.add_argument('--scale', default=1.0, type=float)
 parser.add_argument('--reprob', default=0.2, type=float)
-parser.add_argument('--ra-m', default=12, type=int)
-parser.add_argument('--ra-n', default=2, type=int)
+parser.add_argument('--ra-m', default=20, type=int)
+parser.add_argument('--ra-n', default=4, type=int)
 parser.add_argument('--jitter', default=0.2, type=float)
 
 parser.add_argument('--wd', default=0.005, type=float)
 parser.add_argument('--clip-norm', action='store_true')
 # 120epoch，以平衡训练量
-parser.add_argument('--epochs', default=120, type=int)
-parser.add_argument('--lr-max', default=0.05, type=float)
+parser.add_argument('--epochs', default=1000, type=int)
+parser.add_argument('--lr-max', default=0.01, type=float)
 parser.add_argument('--workers', default=4, type=int)
 
 

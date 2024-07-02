@@ -54,7 +54,7 @@ PlaneVsShipNet = lambda: BinaryConvMixer("data/train飞机vs轮船/model_0.9815_
 CarVsTruckNet = lambda: BinaryConvMixer("data/train汽车vs卡车/model_0.9795_epoch104.pth")
 FourLeggedVsOthersNet = lambda: BinaryConvMixer("data/train鸟青蛙vs四脚兽/model_0.9720_epoch102.pth")
 CatDogVsDeerHorseNet = lambda: BinaryConvMixer("data/train猫狗vs马鹿/model_0.9695_epoch98.pth")
-CatVsDogNet = lambda: BinaryConvMixer("data/train猫vs狗/model_0.9175_epoch95.pth")
+CatVsDogNet = lambda: BinaryConvMixer("data/train猫vs狗/model_0.9285_epoch589.pth")
 DeerVsHorseNet = lambda: BinaryConvMixer("data/train马vs鹿/model_0.9885_epoch102.pth")
 BirdVsFrogNet = lambda: BinaryConvMixer("data/train鸟vs青蛙/model_0.9830_epoch104.pth")
 

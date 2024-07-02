@@ -72,10 +72,14 @@ class DecisionNode(nn.Module):
             self.scheduler.step()
 
         # 不管判断是否正确，都往正确的分支传递
-        left_mask = self.label_func(labels) == 0
-        right_mask = ~left_mask
+        # left_mask = self.label_func(labels) == 0
+        # right_mask = ~left_mask
 
-        # 保证每次传递的批次量大于128
+        # 只传递判断的结果
+        left_mask = predictions.squeeze() == 0
+        right_mask = predictions.squeeze() == 1
+
+        
         if self.left:
             self.left_buffer['x'].append(x[left_mask])
             self.left_buffer['labels'].append(labels[left_mask])
