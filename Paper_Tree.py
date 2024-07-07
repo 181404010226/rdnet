@@ -52,15 +52,24 @@ class DecisionNode(nn.Module):
         # 根据输出进行预测
         _, predictions = torch.max(outputs, dim=1)
         predictions = predictions.unsqueeze(1)
- 
+        # if self.chinese_name == '工业vs自然':
+        #     # 计算预测概率在0.4~0.6之间的数量
+        #     uncertain_predictions = ((outputs > 0.4) & (outputs < 0.6)).sum().item()     
+        #     # 打印不确定预测的数量
+        #     print(f"Uncertain predictions (0.4 < prob < 0.6): {uncertain_predictions}")
+        
+       
+        
         if self.judge != [-1, -1]:
             # 使用 judge 进行最终标签选择
             judge_tensor = torch.tensor(self.judge, device=outputs.device, dtype=torch.long)
             selected_labels = judge_tensor[predictions.squeeze()]
             correct = (selected_labels == labels).sum().item()
+            global_vars.update_image_probabilities(x, self.judge, outputs)
         else:
             # 直接比较预测结果和标签函数的结果
             correct = (predictions == true_labels).sum().item()
+
         
         total = labels.size(0)
         global_vars.update_stats(self.chinese_name, correct, total)
@@ -76,9 +85,14 @@ class DecisionNode(nn.Module):
         # right_mask = ~left_mask
 
         # 只传递判断的结果
-        left_mask = predictions.squeeze() == 0
-        right_mask = predictions.squeeze() == 1
+        # left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.45) & (outputs[:, 0] < 0.55))
+        # right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.45) & (outputs[:, 0] < 0.55))
 
+        # # 只传递判断正确的结果
+        correct_mask = predictions.squeeze() == true_labels.squeeze()
+        left_mask = correct_mask & (predictions.squeeze() == 0)
+        right_mask = correct_mask & (predictions.squeeze() == 1)
+        
         
         if self.left:
             self.left_buffer['x'].append(x[left_mask])

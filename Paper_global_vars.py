@@ -3,6 +3,7 @@ class GlobalVars:
         self.node_stats = {}
         self.num_epochs = 200
         self.batch_size = 1000
+        self.image_probabilities = {}  
 
     def reset_stats(self):
         for key in self.node_stats:
@@ -13,6 +14,15 @@ class GlobalVars:
             self.node_stats[node_name] = {"correct": 0, "total": 0}
         self.node_stats[node_name]["correct"] += correct
         self.node_stats[node_name]["total"] += total
+
+    def update_image_probabilities(self, images, judge, probabilities):
+        for img, probs in zip(images, probabilities):
+            img_key = tuple(img.flatten().tolist())  # Convert image tensor to tuple for hashing
+            if img_key not in self.image_probabilities:
+                self.image_probabilities[img_key] = {}
+            for class_idx, prob in enumerate(probs):
+                self.image_probabilities[img_key][judge[class_idx]] = prob.item()
+
 
     def get_accuracy(self, node_name):
         if node_name in self.node_stats:

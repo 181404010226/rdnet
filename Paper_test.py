@@ -7,7 +7,7 @@ import numpy as np
 import random
 
 # 设置随机种子
-seed = 0
+seed = 42
 torch.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
@@ -27,10 +27,26 @@ model = DecisionTree().to(device)
 
 # 测试阶段
 model.eval()
+total_correct = 0
+total_samples = 0
+
 with torch.no_grad():
     for data, target in valid_data:
         data, target = data.to(device), target.to(device)
         model(data, target)
+        
+        # 遍历当前batch中的每个样本
+        for img, true_label in zip(data, target):
+            img_key = tuple(img.cpu().flatten().tolist())
+            if img_key in global_vars.image_probabilities:
+                probs = global_vars.image_probabilities[img_key]
+                predicted_label = max(probs, key=probs.get)
+                if predicted_label == true_label.item():
+                    total_correct += 1
+            total_samples += 1
+
+    accuracy = total_correct / total_samples
+    print(f"Test Accuracy: {accuracy:.4f}")
 
 print(f"Test:")
 global_vars.print_all_stats()

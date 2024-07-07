@@ -23,6 +23,8 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 
+from PIL import Image
+
 import torch
 import torch.nn as nn
 import torchvision.utils
@@ -262,7 +264,7 @@ parser.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                     help='how many batches to wait before writing recovery checkpoint')
 parser.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
                     help='number of checkpoints to keep (default: 10)')
-parser.add_argument('-j', '--workers', type=int, default=4, metavar='N',
+parser.add_argument('-j', '--workers', type=int, default=12, metavar='N',
                     help='how many training processes to use (default: 4)')
 parser.add_argument('--save-images', action='store_true', default=False,
                     help='save images of input bathes every log interval for debugging')
@@ -484,9 +486,43 @@ def main():
     if args.local_rank == 0:
         _logger.info('Scheduled epochs: {}'.format(num_epochs))
 
+
+    class CustomCIFAR10(torchvision.datasets.CIFAR10):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # CIFAR-10 class labels
+            self.bird_frog = [2, 6]  # bird, frog
+            self.quadrupeds = [3, 4, 5, 7]  # deer, dog, horse, cat
+            
+            # Filter and restructure the dataset
+            self.filtered_data = []
+            self.filtered_targets = []
+            
+            for img, target in zip(self.data, self.targets):
+                if target in self.bird_frog + self.quadrupeds:
+                    # 鸟添加两份，以平衡数据集
+                    if target in self.bird_frog:
+                        self.filtered_data.append(img)
+                        self.filtered_targets.append(0)
+                    self.filtered_data.append(img)
+                    self.filtered_targets.append(0 if target in self.bird_frog else 1)
+            
+            # Replace original data and targets
+            self.data = self.filtered_data
+            self.targets = self.filtered_targets
+
+        def __getitem__(self, index):
+            img, target = self.data[index], self.targets[index]
+            if self.transform is not None:
+                img = self.transform(Image.fromarray(img))
+            return img, target
+
+        def __len__(self):
+            return len(self.data)
+
     # 替换 create_dataset 调用的部分为以下代码
     def get_cifar10(root, train):
-        return torchvision.datasets.CIFAR10(root=root, train=train, download=True)
+        return CustomCIFAR10(root=root, train=train, download=True)
 
     # 创建数据集
     dataset_train = get_cifar10(args.data_dir, train=True)

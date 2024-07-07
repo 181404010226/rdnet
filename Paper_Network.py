@@ -34,13 +34,16 @@ def ConvMixer(dim=256, depth=8, kernel_size=5, patch_size=2, n_classes=2):
     )
 
 class BinaryConvMixer(nn.Module):
-    def __init__(self, model_path):
+    def __init__(self, model_path,dim,depth,kernel_size,patch_size):
         super(BinaryConvMixer, self).__init__()
-        self.model = ConvMixer().to(device)
+        self.model = ConvMixer(dim,depth,kernel_size,patch_size).to(device)
         if os.path.exists(model_path):
             state_dict = torch.load(model_path, map_location=device)
             # Remove the 'module.' prefix from state dict keys
-            new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+            if model_path.endswith('.tar'):
+                new_state_dict = {k.replace('module.', ''): v for k, v in state_dict['state_dict'].items()}
+            else:
+                new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
             self.model.load_state_dict(new_state_dict)
         self.model.eval()
 
@@ -48,15 +51,15 @@ class BinaryConvMixer(nn.Module):
         return self.model(x)
 
 # Replace all specific network classes with BinaryConvMixer
-IndustrialVsNaturalNet = lambda: BinaryConvMixer("data/train工业vx自然/model_0.9881_epoch82.pth")
-LandVsSkyNet = lambda: BinaryConvMixer("data/train飞机轮船vs汽车卡车/model_0.9888_epoch110.pth")
-PlaneVsShipNet = lambda: BinaryConvMixer("data/train飞机vs轮船/model_0.9815_epoch112.pth")
-CarVsTruckNet = lambda: BinaryConvMixer("data/train汽车vs卡车/model_0.9795_epoch104.pth")
-FourLeggedVsOthersNet = lambda: BinaryConvMixer("data/train鸟青蛙vs四脚兽/model_0.9720_epoch102.pth")
-CatDogVsDeerHorseNet = lambda: BinaryConvMixer("data/train猫狗vs马鹿/model_0.9695_epoch98.pth")
-CatVsDogNet = lambda: BinaryConvMixer("data/train猫vs狗/model_0.9285_epoch589.pth")
-DeerVsHorseNet = lambda: BinaryConvMixer("data/train马vs鹿/model_0.9885_epoch102.pth")
-BirdVsFrogNet = lambda: BinaryConvMixer("data/train鸟vs青蛙/model_0.9830_epoch104.pth")
+IndustrialVsNaturalNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/工业vs自然9916/model_best.pth.tar",256,8,5,2)
+LandVsSkyNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/飞机轮船vs汽车卡车/model_best.pth.tar",256,8,5,2)
+PlaneVsShipNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/飞机vs轮船/model_best.pth.tar",256,8,5,2)
+CarVsTruckNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/汽车vs卡车9855/model_best.pth.tar",128,16,7,1)
+FourLeggedVsOthersNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/鸟青蛙vs猫狗马鹿97.7875/model_best.pth.tar",128,16,7,1)
+CatDogVsDeerHorseNet = lambda: BinaryConvMixer("data/train猫狗vs马鹿/model_0.9695_epoch98.pth",256,8,5,2)
+CatVsDogNet = lambda: BinaryConvMixer("data/train猫vs狗/model_0.9285_epoch589.pth",256,8,5,2)
+DeerVsHorseNet = lambda: BinaryConvMixer("data/train马vs鹿/model_0.9885_epoch102.pth",256,8,5,2)
+BirdVsFrogNet = lambda: BinaryConvMixer("data/train鸟vs青蛙/model_0.9830_epoch104.pth",256,8,5,2)
 
 def get_network(node_name):
     networks = {
