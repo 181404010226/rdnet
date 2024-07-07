@@ -75,8 +75,8 @@ for epoch in range(global_vars.num_epochs):
     scheduler.step()
     model.step_schedulers()  
     
-    # 每个epoch结束后打印统计信息
-    print(f"Epoch {epoch+1}/{global_vars.num_epochs}:")
+    # 每个epoch结束后打印统计信息和学习率
+    print(f"Epoch {epoch+1}/{global_vars.num_epochs}:, Learning rate: {scheduler.get_last_lr()[0]:.6f}")
     global_vars.print_all_stats()
     global_vars.reset_stats()
 
