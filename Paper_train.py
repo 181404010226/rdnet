@@ -1,7 +1,7 @@
 import torch
 from Paper_Tree import DecisionTree
 from Paper_global_vars import global_vars
-from Paper_DataSet import valid_data
+from Paper_DataSet import valid_data,loader_train
 from torch import optim
 import torch.nn.functional as F
 import os
@@ -29,10 +29,10 @@ model = DecisionTree().to(device)
 optimizer = model.global_optimizer
 scheduler = model.global_scheduler
 
-# 训练阶段
-model.train()
 for epoch in range(global_vars.num_epochs):
-    for batch_idx, (data, target) in enumerate(valid_data):
+    # 训练阶段
+    model.train()
+    for batch_idx, (data, target) in enumerate(loader_train):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         model.zero_optimizers()  
@@ -45,20 +45,32 @@ for epoch in range(global_vars.num_epochs):
             img_key = tuple(img.cpu().flatten().tolist())
             if img_key in global_vars.image_probabilities:
                 probs = global_vars.image_probabilities[img_key]
-                if len(probs) == 10:  # 只处理有10个标签的情况
-                    valid_samples += 1
-                    predicted_probs = torch.stack([probs[i].to(device).requires_grad_() for i in range(10)])
-                    sample_loss = F.cross_entropy(predicted_probs.unsqueeze(0), true_label.unsqueeze(0))
-                    batch_loss += sample_loss
+                valid_samples += 1
+                predicted_probs = torch.zeros(10, device=device)
+                for i in range(10):
+                    predicted_probs[i] = probs.get(i, torch.tensor(0.0, device=device)).requires_grad_()
+                sample_loss = F.cross_entropy(predicted_probs.unsqueeze(0), true_label.unsqueeze(0))
+                batch_loss += sample_loss
         
-        if valid_samples >= global_vars.train_batch_size/10:  # 确保有足够的有效样本
-            batch_loss/=valid_samples
+        if valid_samples >= 1:  # 确保有足够的有效样本
+            batch_loss /= valid_samples
             batch_loss.backward()
             optimizer.step() 
             
+            # 统计键值对数量
+            pair_counts = {}
+            for probs in global_vars.image_probabilities.values():
+                num_pairs = len(probs)
+                pair_counts[num_pairs] = pair_counts.get(num_pairs, 0) + 1
+            
+            # 打印每个batch的loss和键值对统计
+            print(f"Batch {batch_idx+1}/{len(loader_train)}: Loss: {batch_loss.item():.4f}, Valid samples: {valid_samples}")
+            print("Key-value pair counts:")
+            for num_pairs in sorted(pair_counts.keys(), reverse=True):
+                print(f"  {num_pairs} pairs: {pair_counts[num_pairs]} images")
+        
         model.step_optimizers() 
-        #打印每个batch的loss
-        print(f"Batch {batch_idx+1}/{len(valid_data)}: Loss: {batch_loss.item():.4f}")
+        global_vars.image_probabilities.clear()
      
     scheduler.step()
     model.step_schedulers()  
@@ -91,6 +103,5 @@ for epoch in range(global_vars.num_epochs):
         accuracy = total_correct / total_samples
         print(f"Test Accuracy: {accuracy:.4f}")
 
-print(f"Test:")
-global_vars.print_all_stats()
-global_vars.reset_stats()
+    global_vars.image_probabilities.clear()
+    global_vars.reset_stats()

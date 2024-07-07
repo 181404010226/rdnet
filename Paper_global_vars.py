@@ -2,7 +2,7 @@ class GlobalVars:
     def __init__(self):
         self.node_stats = {}
         self.num_epochs = 200
-        self.train_batch_size = 32
+        self.train_batch_size = 1024
         self.test_batch_size = 1000
         self.image_probabilities = {}  
 

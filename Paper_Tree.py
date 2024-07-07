@@ -44,18 +44,21 @@ class DecisionNode(nn.Module):
         # 计算标签函数的结果
         judge_set = set(self.judge)
         true_labels = torch.zeros(labels.size(0), device=labels.device, dtype=torch.long)
+        mask = torch.zeros(labels.size(0), device=labels.device, dtype=torch.bool)
         for i, label in enumerate(labels):
             if label.item() in judge_set:
                 true_labels[i] = self.label_func(label.unsqueeze(0)).float()
+                mask[i] = True
             else:
                 # 对于不在judge中的标签，选择输出概率最小的类别
                 true_labels[i] = outputs[i].argmin().float()
+
 
         
         # 根据输出进行预测
         _, predictions = torch.max(outputs, dim=1)
         predictions = predictions.unsqueeze(1)
-        
+
         # 如果judge的长度为2，证明是叶子节点
         if len(self.judge) == 2:
             # 使用 judge 进行最终标签选择
@@ -65,23 +68,44 @@ class DecisionNode(nn.Module):
             global_vars.update_image_probabilities(x, self.judge, outputs)
         else:
             # 直接比较预测结果和标签函数的结果
-            correct = (predictions == true_labels).sum().item()
+            correct = (predictions == true_labels.unsqueeze(1)).sum().item()
 
         
         total = labels.size(0)
         global_vars.update_stats(self.chinese_name, correct, total)
         
         if self.training:
-            loss = self.loss_func(outputs, true_labels)
-            loss.backward(retain_graph=True)
+            # Only calculate loss for labels in judge_set
+            filtered_outputs = outputs[mask]
+            filtered_true_labels = true_labels[mask]
+            if filtered_outputs.size(0) > 0:
+                loss = self.loss_func(filtered_outputs, filtered_true_labels)
+                loss.backward(retain_graph=True)
+
 
         # 不管判断是否正确，都往正确的分支传递
         # left_mask = self.label_func(labels) == 0
         # right_mask = ~left_mask
 
+        # Determine which samples to pass to child nodes
+        # if self.training:
+        #     # During training, only pass correctly classified samples
+        #     correct_mask = predictions.squeeze() == true_labels
+        #     left_mask = correct_mask & ((predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99)))
+        #     right_mask = correct_mask & ((predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99)))
+        # else:
+        # During testing, pass all samples based on predictions
+        # 如果是训练，全部传递
+        if self.training:
+            left_mask = (predictions.squeeze() < 100) 
+            right_mask = (predictions.squeeze() < 100) 
+        else:
+            left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
+            right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
+
         # 只传递判断的结果
-        left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
-        right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
+        # left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
+        # right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
 
         # # 只传递判断正确的结果
         # correct_mask = predictions.squeeze() == true_labels.squeeze()
@@ -101,8 +125,8 @@ class DecisionNode(nn.Module):
         buffer['x'].append(x.cpu())
         buffer['labels'].append(labels.cpu())
         
-        batch_size = 1 if is_testing else global_vars.train_batch_size
-        if sum(b.size(0) for b in buffer['x']) >= batch_size:
+        # batch_size = 1 if is_testing else global_vars.train_batch_size
+        if sum(b.size(0) for b in buffer['x']) >= 1:
             combined_x = torch.cat(buffer['x'])
             combined_labels = torch.cat(buffer['labels'])
             
@@ -142,8 +166,8 @@ class DecisionTree(nn.Module):
         # 构建决策树
         self.root = DecisionNode(is_industrial, "工业vs自然", judge=[0,1,2,3,4,5,6,7,8,9], depth=0,
             left=DecisionNode(is_land, "陆地vs天空", judge=[0,1,8,9], depth=1,
-                left=DecisionNode(is_plane, "飞机vs船", judge=[0,8], depth=2, left=None, right=None),
-                right=DecisionNode(is_car, "汽车vs卡车", judge=[1,9], depth=2, left=None, right=None)),
+                left=DecisionNode(is_plane, "飞机vs船", judge=[8,0], depth=2, left=None, right=None),
+                right=DecisionNode(is_car, "汽车vs卡车", judge=[9,1], depth=2, left=None, right=None)),
             right=DecisionNode(is_four_legged, "其他vs四足动物", judge=[2,3,4,5,6,7], depth=1,
                 left=DecisionNode(is_bird, "鸟vs青蛙", judge=[2,6], depth=2, left=None, right=None),
                 right=DecisionNode(is_catdog_deerhorse, "猫狗vs鹿马", judge=[3,4,5,7], depth=2,

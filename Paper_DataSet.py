@@ -44,9 +44,9 @@ loader_train = create_loader(
     num_workers=8,  # -j 8
     distributed=False,
     collate_fn=None,
-    pin_memory=True,
     use_multi_epochs_loader=False,
     worker_seeding='all',
+    # pin_memory=True,
 )
 # 使用 create_loader 创建数据加载器
 valid_data = create_loader(
@@ -61,5 +61,5 @@ valid_data = create_loader(
     num_workers=4,  # 根据需要调整
     distributed=False,  # 根据需要调整
     crop_pct=data_config['crop_pct'],
-    pin_memory=True,  # 根据需要调整
+    # pin_memory=True,  # 根据需要调整
 )
