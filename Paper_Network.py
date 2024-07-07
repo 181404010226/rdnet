@@ -51,15 +51,15 @@ class BinaryConvMixer(nn.Module):
         return self.model(x)
 
 # Replace all specific network classes with BinaryConvMixer
-IndustrialVsNaturalNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/工业vs自然9916/model_best.pth.tar",256,8,5,2)
-LandVsSkyNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/飞机轮船vs汽车卡车/model_best.pth.tar",256,8,5,2)
-PlaneVsShipNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/飞机vs轮船/model_best.pth.tar",256,8,5,2)
-CarVsTruckNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/汽车vs卡车9855/model_best.pth.tar",128,16,7,1)
-FourLeggedVsOthersNet = lambda: BinaryConvMixer("pytorch-image-models/output/train/鸟青蛙vs猫狗马鹿97.7875/model_best.pth.tar",128,16,7,1)
-CatDogVsDeerHorseNet = lambda: BinaryConvMixer("data/train猫狗vs马鹿/model_0.9695_epoch98.pth",256,8,5,2)
-CatVsDogNet = lambda: BinaryConvMixer("data/train猫vs狗/model_0.9285_epoch589.pth",256,8,5,2)
-DeerVsHorseNet = lambda: BinaryConvMixer("data/train马vs鹿/model_0.9885_epoch102.pth",256,8,5,2)
-BirdVsFrogNet = lambda: BinaryConvMixer("data/train鸟vs青蛙/model_0.9830_epoch104.pth",256,8,5,2)
+IndustrialVsNaturalNet = lambda: BinaryConvMixer("",128,4,5,2)
+LandVsSkyNet = lambda: BinaryConvMixer("",128,4,5,2)
+PlaneVsShipNet = lambda: BinaryConvMixer("",128,4,5,2)
+CarVsTruckNet = lambda: BinaryConvMixer("",128,4,5,2)
+FourLeggedVsOthersNet = lambda: BinaryConvMixer("",128,4,5,2)
+CatDogVsDeerHorseNet = lambda: BinaryConvMixer("",128,4,5,2)
+CatVsDogNet = lambda: BinaryConvMixer("",128,4,5,2)
+DeerVsHorseNet = lambda: BinaryConvMixer("",128,4,5,2)
+BirdVsFrogNet = lambda: BinaryConvMixer("",128,4,5,2)
 
 def get_network(node_name):
     networks = {
