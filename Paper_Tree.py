@@ -97,8 +97,8 @@ class DecisionNode(nn.Module):
         # During testing, pass all samples based on predictions
         # 如果是训练，全部传递
         if self.training:
-            left_mask = (predictions.squeeze() < 100) 
-            right_mask = (predictions.squeeze() < 100) 
+            left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
+            right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
         else:
             left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
             right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
