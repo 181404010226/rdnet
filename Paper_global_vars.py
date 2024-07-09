@@ -2,7 +2,7 @@ class GlobalVars:
     def __init__(self):
         self.node_stats = {}
         self.num_epochs = 200
-        self.train_batch_size = 1024
+        self.train_batch_size = 256
         self.test_batch_size = 1000
         self.image_probabilities = {}  
 
@@ -22,7 +22,7 @@ class GlobalVars:
             if img_key not in self.image_probabilities:
                 self.image_probabilities[img_key] = {}
             for class_idx, prob in enumerate(probs):
-                self.image_probabilities[img_key][judge[class_idx]] =  prob.cpu().detach() 
+                self.image_probabilities[img_key][judge[class_idx]] =  prob
 
 
     def get_accuracy(self, node_name):

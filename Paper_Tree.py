@@ -20,11 +20,12 @@ class DecisionNode(nn.Module):
         
         # Adjust learning rate based on depth
         self.optimizer = optim.AdamW(self.model.parameters(), weight_decay=0.01)
+
         
         # 学习率调整策略 OneCycleLR：
         self.scheduler = optim.lr_scheduler.OneCycleLR(
             optimizer=self.optimizer,
-            max_lr=0.01,
+            max_lr=0.0025,
             total_steps=global_vars.num_epochs,
             pct_start=0.3,
             anneal_strategy='cos',
@@ -42,18 +43,11 @@ class DecisionNode(nn.Module):
         outputs = self.model(x)
 
         # 计算标签函数的结果
-        judge_set = set(self.judge)
-        true_labels = torch.zeros(labels.size(0), device=labels.device, dtype=torch.long)
-        mask = torch.zeros(labels.size(0), device=labels.device, dtype=torch.bool)
-        for i, label in enumerate(labels):
-            if label.item() in judge_set:
-                true_labels[i] = self.label_func(label.unsqueeze(0)).float()
-                mask[i] = True
-            else:
-                # 对于不在judge中的标签，选择输出概率最小的类别
-                true_labels[i] = outputs[i].argmin().float()
-
-
+        judge_tensor = torch.tensor(self.judge, device=labels.device)
+        mask = torch.isin(labels, judge_tensor)
+        
+        # 使用标签函数计算true_labels
+        true_labels = self.label_func(labels).long()
         
         # 根据输出进行预测
         _, predictions = torch.max(outputs, dim=1)
@@ -80,65 +74,26 @@ class DecisionNode(nn.Module):
             filtered_true_labels = true_labels[mask]
             if filtered_outputs.size(0) > 0:
                 loss = self.loss_func(filtered_outputs, filtered_true_labels)
+                # self.optimizer.zero_grad()
                 loss.backward(retain_graph=True)
+                # self.optimizer.step()
 
-
-        # 不管判断是否正确，都往正确的分支传递
-        # left_mask = self.label_func(labels) == 0
-        # right_mask = ~left_mask
-
-        # Determine which samples to pass to child nodes
-        # if self.training:
-        #     # During training, only pass correctly classified samples
-        #     correct_mask = predictions.squeeze() == true_labels
-        #     left_mask = correct_mask & ((predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99)))
-        #     right_mask = correct_mask & ((predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99)))
-        # else:
-        # During testing, pass all samples based on predictions
         left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
         right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
     
-        # 只传递判断的结果
-        # left_mask = (predictions.squeeze() == 0) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
-        # right_mask = (predictions.squeeze() == 1) | ((outputs[:, 0] > 0.01) & (outputs[:, 0] < 0.99))
-
-        # # 只传递判断正确的结果
-        # correct_mask = predictions.squeeze() == true_labels.squeeze()
-        # left_mask = correct_mask & (predictions.squeeze() == 0)
-        # right_mask = correct_mask & (predictions.squeeze() == 1)
-            # In the forward method:
         if self.left:
             self.left_buffer = self.process_buffer(self.left_buffer, self.left, x[left_mask], labels[left_mask], not self.training)
 
         if self.right:
             self.right_buffer = self.process_buffer(self.right_buffer, self.right, x[right_mask], labels[right_mask], not self.training)
-
-
         
     def process_buffer(self, buffer, child_node, x, labels, is_testing):
-        # Move incoming data to CPU
-        buffer['x'].append(x.cpu())
-        buffer['labels'].append(labels.cpu())
+        # Directly process the incoming data
+        if x.size(0) > 0:
+            child_node(x, labels)
         
-        # batch_size = 1 if is_testing else global_vars.train_batch_size
-        if sum(b.size(0) for b in buffer['x']) >= 1:
-            combined_x = torch.cat(buffer['x'])
-            combined_labels = torch.cat(buffer['labels'])
-            
-            # Move data back to GPU before processing
-            device = next(child_node.parameters()).device
-            combined_x = combined_x.to(device)
-            combined_labels = combined_labels.to(device)
-            
-            child_node(combined_x, combined_labels)
-            
-            # Clear memory
-            del combined_x, combined_labels
-            torch.cuda.empty_cache()
-            
-            return {'x': [], 'labels': []}
-
-        return buffer
+        # Return an empty buffer since we're not accumulating data anymore
+        return {'x': [], 'labels': []}
 
 
 class DecisionTree(nn.Module):
@@ -170,21 +125,6 @@ class DecisionTree(nn.Module):
                     right=DecisionNode(is_deer, "鹿vs马", judge=[4,7], depth=3, left=None, right=None)
                 ),
             )
-        )
-
-        # Add global optimizer
-        self.global_optimizer = optim.AdamW(self.parameters(), weight_decay=0.01)
-        
-        # Add global scheduler
-        self.global_scheduler = optim.lr_scheduler.OneCycleLR(
-            optimizer=self.global_optimizer,
-            max_lr=0.01,
-            total_steps=global_vars.num_epochs,
-            pct_start=0.3,
-            anneal_strategy='cos',
-            cycle_momentum=True,
-            base_momentum=0.85,
-            max_momentum=0.95
         )
 
     

@@ -1,6 +1,9 @@
 data/
 CIFAR10RawData/
 images/
+best_models/
+best_models无mixup/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -58,8 +58,29 @@ valid_data = create_loader(
     interpolation=data_config['interpolation'],
     mean=data_config['mean'],
     std=data_config['std'],
-    num_workers=4,  # 根据需要调整
+    num_workers=8,  # 根据需要调整
     distributed=False,  # 根据需要调整
     crop_pct=data_config['crop_pct'],
     pin_memory=True,  # 根据需要调整
 )
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    import os
+    import torch
+
+    # 获取一批训练数据
+    data_iter = iter(loader_train)
+    images, labels = next(data_iter)
+
+    # 存储64张训练图片
+    save_dir = "saved_images"
+    os.makedirs(save_dir, exist_ok=True)
+    for i, img in enumerate(images[:64]):
+        img = img.permute(1, 2, 0)  # 将图像从 (C, H, W) 转换为 (H, W, C)
+        img = img.numpy()
+        
+        # Normalize the image data to 0-1 range
+        img = (img - img.min()) / (img.max() - img.min())
+        
+        plt.imsave(os.path.join(save_dir, f"image_{i}.png"), img)

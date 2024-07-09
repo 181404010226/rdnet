@@ -7,6 +7,8 @@ import torch.nn.functional as F
 import os
 import numpy as np
 import random
+import csv
+from datetime import datetime
 
 # 设置随机种子
 seed = 42
@@ -26,16 +28,34 @@ root = os.path.join(os.path.dirname(__file__), "CIFAR10RawData")
 
 # 初始化模型并移至GPU
 model = DecisionTree().to(device)
-optimizer = model.global_optimizer
-scheduler = model.global_scheduler
+optimizer = optim.AdamW(model.parameters(), weight_decay=0.01)
+
+scheduler = optim.lr_scheduler.OneCycleLR(
+            optimizer=optimizer,
+            max_lr=0.0025,
+            total_steps=global_vars.num_epochs,
+            pct_start=0.3,
+            anneal_strategy='cos',
+            cycle_momentum=True,
+            base_momentum=0.85,
+            max_momentum=0.95
+        )
+
+best_models = []
+best_accuracies = []
+
+# Create a CSV file for logging
+csv_filename = f"training_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+csv_file = open(csv_filename, 'w', newline='')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow(['Epoch', 'Batch', 'Loss', 'Valid Samples', 'Learning Rate', 'Key-Value Pair Counts'])
+
 
 for epoch in range(global_vars.num_epochs):
     # 训练阶段
     model.train()
     for batch_idx, (data, target) in enumerate(loader_train):
         data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
-        model.zero_optimizers()  
         model(data, target.squeeze())
         
         batch_loss = 0
@@ -55,7 +75,8 @@ for epoch in range(global_vars.num_epochs):
         if valid_samples >= 1:  # 确保有足够的有效样本
             batch_loss /= valid_samples
             batch_loss.backward()
-            optimizer.step() 
+            optimizer.step()   
+            optimizer.zero_grad()
             
             # 统计键值对数量
             pair_counts = {}
@@ -63,20 +84,35 @@ for epoch in range(global_vars.num_epochs):
                 num_pairs = len(probs)
                 pair_counts[num_pairs] = pair_counts.get(num_pairs, 0) + 1
             
-            # 打印每个batch的loss和键值对统计
-            print(f"Batch {batch_idx+1}/{len(loader_train)}: Loss: {batch_loss.item():.4f}, Valid samples: {valid_samples}")
-            print("Key-value pair counts:")
-            for num_pairs in sorted(pair_counts.keys(), reverse=True):
-                print(f"  {num_pairs} pairs: {pair_counts[num_pairs]} images")
-        
-        model.step_optimizers() 
+            # 打印每10个batch的loss和键值对统计
+
+            if (batch_idx + 1) % 10 == 0:
+                print(f"Batch {batch_idx+1}/{len(loader_train)}: Loss: {batch_loss.item():.4f}, Valid samples: {valid_samples}, Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+                print("Key-value pair counts:")
+                pair_counts_str = ""
+                for num_pairs in sorted(pair_counts.keys(), reverse=True):
+                    pair_count = f"{num_pairs} pairs: {pair_counts[num_pairs]} images"
+                    print(f"  {pair_count}", end=" ")
+                    pair_counts_str += pair_count + "; "
+                print()
+                # Write to CSV
+                csv_writer.writerow([
+                    epoch + 1,
+                    batch_idx + 1,
+                    f"{batch_loss.item():.4f}",
+                    valid_samples,
+                    f"{scheduler.get_last_lr()[0]:.6f}",
+                    pair_counts_str.strip()
+                ])
+                csv_file.flush()  # Ensure data is written immediately
+
         global_vars.image_probabilities.clear()
      
     scheduler.step()
     model.step_schedulers()  
     
     # 每个epoch结束后打印统计信息和学习率
-    print(f"Epoch {epoch+1}/{global_vars.num_epochs}:, Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+    print(f"Epoch {epoch+1}/{global_vars.num_epochs}: ")
     global_vars.print_all_stats()
     global_vars.reset_stats()
 
@@ -103,5 +139,43 @@ for epoch in range(global_vars.num_epochs):
         accuracy = total_correct / total_samples
         print(f"Test Accuracy: {accuracy:.4f}")
 
+                # 保存前十个最佳模型
+        if len(best_models) < 10 or accuracy > min(best_accuracies):
+            model_state = model.state_dict()
+            if len(best_models) == 10:
+                # 移除准确率最低的模型
+                min_acc_index = best_accuracies.index(min(best_accuracies))
+                min_acc = best_accuracies[min_acc_index]
+                
+                # 删除文件系统中的模型文件
+                for filename in os.listdir("best_models"):
+                    if filename.endswith(f"acc_{min_acc:.4f}.pth"):
+                        os.remove(os.path.join("best_models", filename))
+                        print(f"Removed model file: {filename}")
+                        break
+                
+                best_models.pop(min_acc_index)
+                best_accuracies.pop(min_acc_index)
+            
+            best_models.append(model_state)
+            best_accuracies.append(accuracy)
+            
+            # 按准确率降序排序
+            best_models, best_accuracies = zip(*sorted(zip(best_models, best_accuracies), 
+                                                    key=lambda x: x[1], reverse=True))
+            best_models = list(best_models)
+            best_accuracies = list(best_accuracies)
+            
+            # 保存模型
+            save_path = os.path.join("best_models", f"model_epoch_{epoch+1}_acc_{accuracy:.4f}.pth")
+            os.makedirs("best_models", exist_ok=True)
+            torch.save(model_state, save_path)
+            print(f"Saved model to {save_path}")
+
     global_vars.image_probabilities.clear()
     global_vars.reset_stats()
+
+    # 训练结束后，打印最佳模型信息
+    print("\nTop 10 Best Models:")
+    for i, (_, acc) in enumerate(zip(best_models, best_accuracies), 1):
+        print(f"{i}. Accuracy: {acc:.4f}")

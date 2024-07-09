@@ -64,6 +64,18 @@ def convmixer_128_4_5_2(pretrained=False, **kwargs):
     return model
 
 @register_model
+def convmixer_128_4_5_2_ten(pretrained=False, **kwargs):
+    model = ConvMixer(128, 4, kernel_size=5, patch_size=2, n_classes=10)
+    model.default_cfg = _cfg
+    return model
+
+@register_model
+def convmixer_32_4_3_2_ten(pretrained=False, **kwargs):
+    model = ConvMixer(32, 4, kernel_size=3, patch_size=2, n_classes=10)
+    model.default_cfg = _cfg
+    return model
+
+@register_model
 def convmixer_128_16_7_1(pretrained=False, **kwargs):
     model = ConvMixer(128, 16, kernel_size=7, patch_size=1, n_classes=2)
     model.default_cfg = _cfg
