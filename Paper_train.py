@@ -32,7 +32,7 @@ optimizer = optim.AdamW(model.parameters(), weight_decay=0.01)
 
 scheduler = optim.lr_scheduler.OneCycleLR(
             optimizer=optimizer,
-            max_lr=0.0025,
+            max_lr=0.001,
             total_steps=global_vars.num_epochs,
             pct_start=0.3,
             anneal_strategy='cos',
@@ -54,67 +54,72 @@ csv_writer.writerow(['Epoch', 'Batch', 'Loss', 'Valid Samples', 'Learning Rate',
 for epoch in range(global_vars.num_epochs):
     # 训练阶段
     model.train()
+    train_correct = 0
+    train_total = 0
     for batch_idx, (data, target) in enumerate(loader_train):
+        global_vars.image_probabilities.clear()
         data, target = data.to(device), target.to(device)
-        model(data, target.squeeze())
+        model(data)
         
         batch_loss = 0
-        valid_samples = 0
         
-        for img, true_label in zip(data, target):
-            img_key = tuple(img.cpu().flatten().tolist())
-            if img_key in global_vars.image_probabilities:
-                probs = global_vars.image_probabilities[img_key]
-                valid_samples += 1
+        for idx, (_, true_label) in enumerate(zip(data, target)):
+            if idx in global_vars.image_probabilities:
+                probs = global_vars.image_probabilities[idx]
                 predicted_probs = torch.zeros(10, device=device)
                 for i in range(10):
-                    predicted_probs[i] = probs.get(i, torch.tensor(0.0, device=device)).requires_grad_()
+                    predicted_probs[i] = probs.get(i, 0.0)
                 sample_loss = F.cross_entropy(predicted_probs.unsqueeze(0), true_label.unsqueeze(0))
                 batch_loss += sample_loss
+                
+                # 统计训练正确率
+                predicted_label = predicted_probs.argmax().item()
+                train_correct += (predicted_label == true_label.item())
+                train_total += 1
         
-        if valid_samples >= 1:  # 确保有足够的有效样本
-            batch_loss /= valid_samples
-            batch_loss.backward()
-            optimizer.step()   
-            optimizer.zero_grad()
-            
-            # 统计键值对数量
+        batch_loss /= global_vars.train_batch_size
+        batch_loss.backward()
+        optimizer.step()   
+        optimizer.zero_grad()  
+
+        # 统计键值对数量
+        pair_counts = {}
+        for probs in global_vars.image_probabilities.values():
+            num_pairs = len(probs)
+            pair_counts[num_pairs] = pair_counts.get(num_pairs, 0) + 1
+        
+        # 打印每10个batch的loss和键值对统计
+
+        if (batch_idx + 1) % 10 == 0:
+            print(f"Batch {batch_idx+1}/{len(loader_train)}: Loss: {batch_loss.item():.4f}, Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+            print("Key-value pair counts (sum of probabilities > 0.1):")
             pair_counts = {}
             for probs in global_vars.image_probabilities.values():
-                num_pairs = len(probs)
+                num_pairs = sum(1 for p in probs.values() if p > 0.1)
                 pair_counts[num_pairs] = pair_counts.get(num_pairs, 0) + 1
+            pair_counts_str = ""
+            for num_pairs in sorted(pair_counts.keys(), reverse=True):
+                pair_count = f"{num_pairs} pairs: {pair_counts[num_pairs]} images"
+                print(f"  {pair_count}", end=" ")
+                pair_counts_str += pair_count + "; "
+            print()
+            # Write to CSV
+            csv_writer.writerow([
+                epoch + 1,
+                batch_idx + 1,
+                f"{batch_loss.item():.4f}",
+                f"{scheduler.get_last_lr()[0]:.6f}",
+                pair_counts_str.strip()
+            ])
+            csv_file.flush()  # Ensure data is written immediately
             
-            # 打印每10个batch的loss和键值对统计
-
-            if (batch_idx + 1) % 10 == 0:
-                print(f"Batch {batch_idx+1}/{len(loader_train)}: Loss: {batch_loss.item():.4f}, Valid samples: {valid_samples}, Learning rate: {scheduler.get_last_lr()[0]:.6f}")
-                print("Key-value pair counts:")
-                pair_counts_str = ""
-                for num_pairs in sorted(pair_counts.keys(), reverse=True):
-                    pair_count = f"{num_pairs} pairs: {pair_counts[num_pairs]} images"
-                    print(f"  {pair_count}", end=" ")
-                    pair_counts_str += pair_count + "; "
-                print()
-                # Write to CSV
-                csv_writer.writerow([
-                    epoch + 1,
-                    batch_idx + 1,
-                    f"{batch_loss.item():.4f}",
-                    valid_samples,
-                    f"{scheduler.get_last_lr()[0]:.6f}",
-                    pair_counts_str.strip()
-                ])
-                csv_file.flush()  # Ensure data is written immediately
-
-        global_vars.image_probabilities.clear()
      
     scheduler.step()
-    model.step_schedulers()  
-    
-    # 每个epoch结束后打印统计信息和学习率
-    print(f"Epoch {epoch+1}/{global_vars.num_epochs}: ")
-    global_vars.print_all_stats()
-    global_vars.reset_stats()
+
+    # 输出训练阶段正确率
+    train_accuracy = train_correct / train_total if train_total > 0 else 0
+    print(f"Epoch {epoch+1}/{global_vars.num_epochs} - Train Accuracy: {train_accuracy:.4f}")
+
 
     # 测试代码
     model.eval()
@@ -122,24 +127,25 @@ for epoch in range(global_vars.num_epochs):
     total_samples = 0
 
     with torch.no_grad():
-        for data, target in valid_data:
+        for batch_idx, (data, target) in enumerate(valid_data):
+            global_vars.image_probabilities.clear()
             data, target = data.to(device), target.to(device)
-            model(data, target)
+            model(data)
             
             # 遍历当前batch中的每个样本
-            for img, true_label in zip(data, target):
-                img_key = tuple(img.cpu().flatten().tolist())
-                if img_key in global_vars.image_probabilities:
-                    probs = global_vars.image_probabilities[img_key]
-                    predicted_label = max(probs, key=probs.get)
-                    if predicted_label == true_label.item():
-                        total_correct += 1
+            for idx, true_label in enumerate(target):
+                if idx in global_vars.image_probabilities:
+                    probs = global_vars.image_probabilities[idx]
+                    predicted_probs = torch.zeros(10, device=device)
+                    for i in range(10):
+                        predicted_probs[i] = probs.get(i, 0.0)
+                    total_correct += predicted_probs[true_label.item()].item()
                 total_samples += 1
 
         accuracy = total_correct / total_samples
         print(f"Test Accuracy: {accuracy:.4f}")
 
-                # 保存前十个最佳模型
+        # 保存前十个最佳模型
         if len(best_models) < 10 or accuracy > min(best_accuracies):
             model_state = model.state_dict()
             if len(best_models) == 10:
@@ -172,8 +178,6 @@ for epoch in range(global_vars.num_epochs):
             torch.save(model_state, save_path)
             print(f"Saved model to {save_path}")
 
-    global_vars.image_probabilities.clear()
-    global_vars.reset_stats()
 
     # 训练结束后，打印最佳模型信息
     print("\nTop 10 Best Models:")

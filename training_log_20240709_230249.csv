@@ -1,0 +1,6 @@
+Epoch,Batch,Loss,Valid Samples,Learning Rate,Key-Value Pair Counts
+1,10,2.2937,0.000100,
+1,20,2.2759,0.000100,
+1,30,2.2693,0.000100,
+1,40,2.2592,0.000100,
+1,50,2.2271,0.000100,

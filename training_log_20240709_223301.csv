@@ -1,0 +1,12 @@
+Epoch,Batch,Loss,Valid Samples,Learning Rate,Key-Value Pair Counts
+1,10,2.2830,256,0.000100,10 pairs: 256 images;
+1,20,2.2783,256,0.000100,10 pairs: 255 images; 4 pairs: 1 images;
+1,30,2.2687,256,0.000100,10 pairs: 253 images; 6 pairs: 1 images; 4 pairs: 1 images;
+1,40,2.2535,256,0.000100,10 pairs: 253 images; 6 pairs: 2 images; 4 pairs: 1 images;
+1,50,2.2295,256,0.000100,10 pairs: 251 images; 6 pairs: 1 images; 4 pairs: 4 images;
+1,60,2.2351,256,0.000100,10 pairs: 245 images; 6 pairs: 5 images; 4 pairs: 6 images;
+1,70,2.2399,256,0.000100,10 pairs: 239 images; 6 pairs: 8 images; 4 pairs: 9 images;
+1,80,2.2082,256,0.000100,10 pairs: 229 images; 6 pairs: 10 images; 4 pairs: 17 images;
+1,90,2.1997,256,0.000100,10 pairs: 219 images; 6 pairs: 24 images; 4 pairs: 13 images;
+1,100,2.1903,256,0.000100,10 pairs: 212 images; 6 pairs: 22 images; 4 pairs: 22 images;
+1,110,2.2015,256,0.000100,10 pairs: 218 images; 6 pairs: 18 images; 4 pairs: 20 images;
