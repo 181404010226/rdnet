@@ -24,9 +24,10 @@ class DecisionNode(nn.Module):
         global_vars.update_image_probabilities(self.judge, outputs)
 
         if self.left:
-            self.left(x);
+            self.left(x)
         if self.right:
-            self.right(x);
+            self.right(x)
+
 
 
 class DecisionTree(nn.Module):

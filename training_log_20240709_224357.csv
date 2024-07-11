@@ -1,2 +1,0 @@
-Epoch,Batch,Loss,Valid Samples,Learning Rate,Key-Value Pair Counts
-1,10,2.2934,32,0.000100,10 pairs: 32 images;
