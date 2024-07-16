@@ -45,34 +45,23 @@ for epoch in range(global_vars.num_epochs):
     train_correct = 0
     train_total = 0
     for batch_idx, (data, target) in enumerate(loader_train):
-        global_vars.image_probabilities.clear()
+        global_vars.initialize_image_probabilities(10)
         data, target = data.to(device), target.to(device)
         
         # 使用 autocast 上下文管理器
         with autocast():
             model(data)
             
-            batch_loss = 0
+            # 计算批次损失
+            predicted_probs = global_vars.image_probabilities[:len(data)]
+        
+            # 使用 KL 散度作为损失函数
+            batch_loss = F.kl_div(predicted_probs.log(), target, reduction='batchmean')
             
-            for idx, (_, true_label) in enumerate(zip(data, target)):
-                if idx in global_vars.image_probabilities:
-                    probs = global_vars.image_probabilities[idx]
-                    predicted_probs = torch.zeros(10, device=device)
-                    for i in range(10):
-                        predicted_probs[i] = probs.get(i, 0.0)
-                    # sample_loss = F.cross_entropy(predicted_probs.unsqueeze(0), true_label.unsqueeze(0))
-                    # sample_loss = F.nll_loss(predicted_probs.unsqueeze(0).log(), true_label.unsqueeze(0))
-                    # 使用 KL 散度作为损失函数
-                    sample_loss = F.kl_div(predicted_probs.log(), true_label.unsqueeze(0), reduction='batchmean')
-
-                    batch_loss += sample_loss
-                    
-                    # 统计训练正确率
-                    # predicted_label = predicted_probs.argmax().item()
-                    # train_correct += (predicted_label == true_label.item())
-                    # train_total += 1
-            
-            batch_loss /= global_vars.train_batch_size
+            # 统计训练正确率（如果需要）
+            # predicted_labels = predicted_probs.argmax(dim=1)
+            # train_correct += (predicted_labels == target).sum().item()
+            # train_total += len(target)
 
         # 使用 scaler 来缩放损失并执行反向传播
         scaler.scale(batch_loss).backward()
@@ -84,27 +73,10 @@ for epoch in range(global_vars.num_epochs):
         scaler.update()
         optimizer.zero_grad()
 
-        # 统计键值对数量
-        pair_counts = {}
-        for probs in global_vars.image_probabilities.values():
-            num_pairs = len(probs)
-            pair_counts[num_pairs] = pair_counts.get(num_pairs, 0) + 1
-        
         # 打印每10个batch的loss和键值对统计
         if (batch_idx + 1) % 10 == 0:
             print(f"Batch {batch_idx+1}/{len(loader_train)}: Loss: {batch_loss.item():.4f}")
             print(f"Learning rate: {scheduler.get_last_lr()[0]:.6f}")
-            print("Key-value pair counts (sum of probabilities > 0.1):")
-            pair_counts = {}
-            for probs in global_vars.image_probabilities.values():
-                num_pairs = sum(1 for p in probs.values() if p > 0.1)
-                pair_counts[num_pairs] = pair_counts.get(num_pairs, 0) + 1
-            pair_counts_str = ""
-            for num_pairs in sorted(pair_counts.keys(), reverse=True):
-                pair_count = f"{num_pairs} pairs: {pair_counts[num_pairs]} images"
-                print(f"  {pair_count}", end=" ")
-                pair_counts_str += pair_count + "; "
-            print()
     
     scheduler.step()
 
@@ -119,20 +91,19 @@ for epoch in range(global_vars.num_epochs):
 
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(valid_data):
-            global_vars.image_probabilities.clear()
+            global_vars.initialize_image_probabilities(10)
             data, target = data.to(device), target.to(device)
             model(data)
             
-            # 遍历当前batch中的每个样本
-            for idx, true_label in enumerate(target):
-                if idx in global_vars.image_probabilities:
-                    probs = global_vars.image_probabilities[idx]
-                    predicted_probs = torch.zeros(10, device=device)
-                    for i in range(10):
-                        predicted_probs[i] = probs.get(i, 0.0)
-                    predicted_label = predicted_probs.argmax().item()
-                    total_correct += (predicted_label == true_label.item())
-                total_samples += 1
+            # 获取当前批次的预测概率
+            predicted_probs = global_vars.image_probabilities[:len(data)]
+            
+            # 获取预测标签
+            predicted_labels = predicted_probs.argmax(dim=1)
+            
+            # 计算正确预测的数量
+            total_correct += (predicted_labels == target).sum().item()
+            total_samples += len(target)
 
         accuracy = total_correct / total_samples
         print(f"Test Accuracy: {accuracy:.4f}")

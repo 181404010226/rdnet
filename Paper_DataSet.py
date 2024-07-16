@@ -110,24 +110,30 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import os
     import torch
-
-    # 获取一批训练数据
-    data_iter = iter(loader_train)
-    # data_iter = iter(valid_data)
-    images, labels = next(data_iter)
     import json
-    with open('variable_dump.json', 'w') as f:
-        json.dump(labels.tolist(), f, indent=4)
-    # 存储64张训练图片
-    save_dir = "saved_images"
-    os.makedirs(save_dir, exist_ok=True)
-    resize_transform = Resize((224, 224))
-    for i, img in enumerate(images[:64]):
-        # Resize the image
-        img = resize_transform(img)
-        img = img.permute(1, 2, 0)  # 将图像从 (C, H, W) 转换为 (H, W, C)
-        img = img.numpy()
-        # Normalize the image data to 0-1 range
-        img = (img - img.min()) / (img.max() - img.min())
-        
-        plt.imsave(os.path.join(save_dir, f"image_{i}.png"), img)
+
+    for batch in range(3):
+        # 获取一批训练数据
+        data_iter = iter(loader_train)
+        images, labels = next(data_iter)
+
+        # 保存标签
+        with open(f'variable_dump_batch_{batch}.json', 'w') as f:
+            json.dump(labels.tolist(), f, indent=4)
+
+        # 存储训练图片
+        save_dir = f"saved_images_batch_{batch}"
+        os.makedirs(save_dir, exist_ok=True)
+        resize_transform = Resize((224, 224))
+
+        for i, img in enumerate(images):
+            # Resize the image
+            img = resize_transform(img)
+            img = img.permute(1, 2, 0)  # 将图像从 (C, H, W) 转换为 (H, W, C)
+            img = img.numpy()
+            # Normalize the image data to 0-1 range
+            img = (img - img.min()) / (img.max() - img.min())
+            
+            plt.imsave(os.path.join(save_dir, f"image_{i}.png"), img)
+
+    print("Three batches of data have been processed and saved.")

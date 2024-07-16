@@ -47,10 +47,12 @@ class BinaryConvMixer(nn.Module):
             self.model.load_state_dict(new_state_dict)
         self.model.eval()
         self.epsilon = 1e-7
+        self.sensitivity = sensitivity
 
     def forward(self, x):
         x = self.model(x)
         x = F.softmax(x, dim=1) + self.epsilon
+
         return x
 
 # Replace all specific network classes with BinaryConvMixer
@@ -77,14 +79,14 @@ BirdVsFrogNet = lambda: BinaryConvMixer("",256,8,5,1)
 
 def get_network(node_name):
     networks = {
-        "工业vs自然": IndustrialVsNaturalNet,
-        "陆地vs天空": LandVsSkyNet,
-        "飞机vs船": PlaneVsShipNet,
-        "汽车vs卡车": CarVsTruckNet,
-        "其他vs四足动物": FourLeggedVsOthersNet,
-        "猫狗vs鹿马": CatDogVsDeerHorseNet,
-        "猫vs狗": CatVsDogNet,
-        "鹿vs马": DeerVsHorseNet,
-        "鸟vs青蛙": BirdVsFrogNet
+        "Industrial vs Natural": IndustrialVsNaturalNet,
+        "Sky vs Land": LandVsSkyNet,
+        "Airplane vs Ship": PlaneVsShipNet,
+        "Car vs Truck": CarVsTruckNet,
+        "Others vs Quadrupeds": FourLeggedVsOthersNet,
+        "Cat/Dog vs Deer/Horse": CatDogVsDeerHorseNet,
+        "Cat vs Dog": CatVsDogNet,
+        "Deer vs Horse": DeerVsHorseNet,
+        "Bird vs Frog": BirdVsFrogNet
     }
     return networks[node_name]()
