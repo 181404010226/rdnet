@@ -14,12 +14,8 @@ class DecisionNode(nn.Module):
         self.chinese_name = chinese_name
         self.judge = judge      
     
-    def forward(self, x):
+    def forward(self, x,labels=None):
         outputs = self.model(x)
-        
-        # 根据输出进行预测
-        _, predictions = torch.max(outputs, dim=1)
-        predictions = predictions.unsqueeze(1)
 
         global_vars.update_image_probabilities(self.judge, outputs)
 
@@ -27,6 +23,7 @@ class DecisionNode(nn.Module):
             self.left(x)
         if self.right:
             self.right(x)
+
 
 
 
@@ -40,8 +37,8 @@ class DecisionTree(nn.Module):
         # 构建决策树
         self.root = DecisionNode("工业vs自然", judge=[[0,1,8,9],[2,3,4,5,6,7]], depth=0,
             left=DecisionNode("陆地vs天空", judge=[[0,8],[1,9]], depth=1,
-                left=DecisionNode("飞机vs船", judge=[[8],[0]], depth=2, left=None, right=None),
-                right=DecisionNode("汽车vs卡车", judge=[[9],[1]], depth=2, left=None, right=None)),
+                left=DecisionNode("飞机vs船", judge=[[0],[8]], depth=2, left=None, right=None),
+                right=DecisionNode("汽车vs卡车", judge=[[1],[9]], depth=2, left=None, right=None)),
             right=DecisionNode("其他vs四足动物", judge=[[2,6],[3,4,5,7]], depth=1,
                 left=DecisionNode("鸟vs青蛙", judge=[[2],[6]], depth=2, left=None, right=None),
                 right=DecisionNode("猫狗vs鹿马", judge=[[3,5],[4,7]], depth=2,
@@ -52,4 +49,5 @@ class DecisionTree(nn.Module):
         )
 
     def forward(self, x):
+
         return self.root(x)

@@ -1,10 +1,31 @@
 import os
-from timm.data import create_loader
+import torch
+import numpy as np
+import random
+from timm.data import create_loader, Mixup
 from torchvision import datasets, transforms
 from Paper_global_vars import global_vars
+from torchvision.transforms import Resize
+from pprint import pprint
+
+
+# 设置随机种子
+seed = 42
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
+
+cifar10_mean = (0.4914, 0.4822, 0.4465)
+cifar10_std = (0.2471, 0.2435, 0.2616)
 
 # 定义数据配置
 data_config = {
@@ -14,6 +35,23 @@ data_config = {
     'std': IMAGENET_DEFAULT_STD,
     'crop_pct': 0.96,
 }
+
+mixup_args = dict(
+    mixup_alpha=0.5,
+    cutmix_alpha=0.5,
+    prob=1.0,
+    switch_prob=0.5,
+    mode='batch',
+    label_smoothing=0.01,
+    num_classes=10
+)
+
+mixup_fn = Mixup(**mixup_args)
+
+def collate_mixup_fn(batch):
+    inputs = torch.stack([b[0] for b in batch])
+    targets = torch.tensor([b[1] for b in batch])
+    return mixup_fn(inputs, targets)
 
 # 选择数据集
 root = os.path.join(os.path.dirname(__file__), "CIFAR10RawData")
@@ -43,12 +81,14 @@ loader_train = create_loader(
     std=data_config['std'],
     num_workers=8,  # -j 8
     distributed=False,
-    crop_pct=data_config['crop_pct'],
-    collate_fn=None,
+    crop_pct=data_config['crop_pct'],   
+    collate_fn=collate_mixup_fn,  # 使用新的 collate_fn
     use_multi_epochs_loader=False,
-    worker_seeding='all',
+    worker_seeding='all',  
     pin_memory=True,
 )
+
+
 # 使用 create_loader 创建数据加载器
 valid_data = create_loader(
     testset,
@@ -65,6 +105,7 @@ valid_data = create_loader(
     pin_memory=True,  # 根据需要调整
 )
 
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import os
@@ -72,15 +113,20 @@ if __name__ == "__main__":
 
     # 获取一批训练数据
     data_iter = iter(loader_train)
+    # data_iter = iter(valid_data)
     images, labels = next(data_iter)
-
+    import json
+    with open('variable_dump.json', 'w') as f:
+        json.dump(labels.tolist(), f, indent=4)
     # 存储64张训练图片
     save_dir = "saved_images"
     os.makedirs(save_dir, exist_ok=True)
+    resize_transform = Resize((224, 224))
     for i, img in enumerate(images[:64]):
+        # Resize the image
+        img = resize_transform(img)
         img = img.permute(1, 2, 0)  # 将图像从 (C, H, W) 转换为 (H, W, C)
         img = img.numpy()
-        
         # Normalize the image data to 0-1 range
         img = (img - img.min()) / (img.max() - img.min())
         

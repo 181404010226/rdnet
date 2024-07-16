@@ -603,15 +603,19 @@ def main():
         # smoothing is handled with mixup target transform which outputs sparse, soft targets
         if args.bce_loss:
             train_loss_fn = BinaryCrossEntropy(target_threshold=args.bce_target_thresh)
+            print("BinaryCrossEntropy")
         else:
             train_loss_fn = SoftTargetCrossEntropy()
+            print("SoftTargetCrossEntropy")
     elif args.smoothing:
         if args.bce_loss:
             train_loss_fn = BinaryCrossEntropy(smoothing=args.smoothing, target_threshold=args.bce_target_thresh)
         else:
             train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
+            print("LabelSmoothingCrossEntropy")
     else:
         train_loss_fn = nn.CrossEntropyLoss()
+        print("CrossEntropyLoss")
     train_loss_fn = train_loss_fn.cuda()
     validate_loss_fn = nn.CrossEntropyLoss().cuda()
 
