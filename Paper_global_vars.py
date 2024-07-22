@@ -1,28 +1,22 @@
+import torch
+
+import torch
+import torch.nn.functional as F
+
 class GlobalVars:
     def __init__(self):
-        self.node_stats = {}
-        self.num_epochs = 200
-        self.batch_size = 1000
+        self.num_epochs = 500
+        self.train_batch_size = 64
+        self.test_batch_size = 1000
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.log_image_probabilities = None
 
-    def reset_stats(self):
-        for key in self.node_stats:
-            self.node_stats[key] = {"correct": 0, "total": 0}
+    def initialize_image_probabilities(self, batch_size):
+        self.log_image_probabilities = torch.ones(batch_size, 10, device=self.device)
 
-    def update_stats(self, node_name, correct, total):
-        if node_name not in self.node_stats:
-            self.node_stats[node_name] = {"correct": 0, "total": 0}
-        self.node_stats[node_name]["correct"] += correct
-        self.node_stats[node_name]["total"] += total
+    def update_image_probabilities(self, judge, outputs):
+        self.log_image_probabilities[:, judge[0]] *= outputs[:, 0].unsqueeze(1)
+        self.log_image_probabilities[:, judge[1]] *= outputs[:, 1].unsqueeze(1)
 
-    def get_accuracy(self, node_name):
-        if node_name in self.node_stats:
-            stats = self.node_stats[node_name]
-            return stats["correct"] / stats["total"] if stats["total"] > 0 else 0
-        return 0
 
-    def print_all_stats(self):
-        for node_name, stats in self.node_stats.items():
-            accuracy = self.get_accuracy(node_name)
-            print(f"{node_name}: {accuracy:.2%} ({stats['correct']}/{stats['total']})")
-
-global_vars = GlobalVars()
+global_vars = GlobalVars()  # 假设有10个标签

@@ -1,0 +1,17 @@
+Epoch,Batch,Loss,Valid Samples,Learning Rate,Key-Value Pair Counts
+1,10,2.2856,0.000100,7 pairs: 1 images; 6 pairs: 57 images; 5 pairs: 69 images; 4 pairs: 104 images; 3 pairs: 13 images; 2 pairs: 9 images; 1 pairs: 3 images;
+1,20,2.2538,0.000100,7 pairs: 1 images; 6 pairs: 36 images; 5 pairs: 60 images; 4 pairs: 142 images; 3 pairs: 15 images; 2 pairs: 2 images;
+1,30,2.2443,0.000100,8 pairs: 2 images; 7 pairs: 4 images; 6 pairs: 50 images; 5 pairs: 63 images; 4 pairs: 114 images; 3 pairs: 12 images; 2 pairs: 11 images;
+1,40,2.2159,0.000100,8 pairs: 2 images; 7 pairs: 10 images; 6 pairs: 52 images; 5 pairs: 43 images; 4 pairs: 130 images; 3 pairs: 14 images; 2 pairs: 5 images;
+1,50,2.1889,0.000100,8 pairs: 3 images; 7 pairs: 7 images; 6 pairs: 61 images; 5 pairs: 29 images; 4 pairs: 123 images; 3 pairs: 23 images; 2 pairs: 10 images;
+1,60,2.1783,0.000100,8 pairs: 1 images; 7 pairs: 3 images; 6 pairs: 65 images; 5 pairs: 33 images; 4 pairs: 124 images; 3 pairs: 14 images; 2 pairs: 16 images;
+1,70,2.1608,0.000100,8 pairs: 2 images; 7 pairs: 9 images; 6 pairs: 74 images; 5 pairs: 25 images; 4 pairs: 118 images; 3 pairs: 13 images; 2 pairs: 15 images;
+1,80,2.1612,0.000100,8 pairs: 5 images; 7 pairs: 6 images; 6 pairs: 74 images; 5 pairs: 27 images; 4 pairs: 119 images; 3 pairs: 7 images; 2 pairs: 18 images;
+1,90,2.1333,0.000100,8 pairs: 3 images; 7 pairs: 7 images; 6 pairs: 76 images; 5 pairs: 24 images; 4 pairs: 128 images; 3 pairs: 5 images; 2 pairs: 13 images;
+1,100,2.1181,0.000100,8 pairs: 2 images; 7 pairs: 8 images; 6 pairs: 71 images; 5 pairs: 26 images; 4 pairs: 118 images; 3 pairs: 13 images; 2 pairs: 18 images;
+1,110,2.1297,0.000100,8 pairs: 7 images; 7 pairs: 3 images; 6 pairs: 84 images; 5 pairs: 17 images; 4 pairs: 125 images; 3 pairs: 6 images; 2 pairs: 14 images;
+1,120,2.0952,0.000100,8 pairs: 5 images; 7 pairs: 10 images; 6 pairs: 83 images; 5 pairs: 20 images; 4 pairs: 112 images; 3 pairs: 6 images; 2 pairs: 20 images;
+1,130,2.0917,0.000100,8 pairs: 4 images; 7 pairs: 10 images; 6 pairs: 83 images; 5 pairs: 19 images; 4 pairs: 105 images; 3 pairs: 14 images; 2 pairs: 21 images;
+1,140,2.1186,0.000100,9 pairs: 1 images; 8 pairs: 4 images; 7 pairs: 8 images; 6 pairs: 83 images; 5 pairs: 19 images; 4 pairs: 113 images; 3 pairs: 12 images; 2 pairs: 16 images;
+1,150,2.0523,0.000100,9 pairs: 1 images; 8 pairs: 15 images; 7 pairs: 11 images; 6 pairs: 75 images; 5 pairs: 20 images; 4 pairs: 105 images; 3 pairs: 12 images; 2 pairs: 17 images;
+1,160,2.0541,0.000100,8 pairs: 5 images; 7 pairs: 11 images; 6 pairs: 76 images; 5 pairs: 23 images; 4 pairs: 112 images; 3 pairs: 10 images; 2 pairs: 19 images;
