@@ -4,6 +4,7 @@ from Paper_Network import ConvMixer
 from Paper_global_vars import global_vars
 from Paper_DataSet import valid_data,loader_train
 from torch import optim
+import torch.nn.functional as F
 import os
 import numpy as np
 import random
@@ -18,12 +19,9 @@ print(f"Using device: {device}")
 root = os.path.join(os.path.dirname(__file__), "CIFAR10RawData")
 
 # 初始化模型并移至GPU
-model = SequentialDecisionTree().to(device)
-# model.load_state_dict(torch.load("best_models/model_epoch_180_acc_0.9373.pth"))
-# model = ConvMixer(dim=256, depth=8, kernel_size=5, patch_size=1, n_classes=10).to(device)
+model = ConvMixer(dim=256, depth=8, kernel_size=5, patch_size=1, n_classes=10).to(device)
 
 optimizer = optim.AdamW(model.parameters(), weight_decay=0.001)
-# optimizer.load_state_dict(torch.load("best_models/optimizer_epoch_180_acc_0.9373.pth"))
 
 scheduler = optim.lr_scheduler.OneCycleLR(
             optimizer=optimizer,
@@ -51,37 +49,16 @@ for epoch in range(global_vars.num_epochs):
     train_total = 0
 
     for batch_idx, (data, target) in enumerate(loader_train):
+        global_vars.initialize_image_probabilities(10,True)
         data, target = data.to(device), target.to(device)
         
         # 使用 autocast 上下文管理器
         with autocast():
-
-            model(data)
-
-            predicted_probs = global_vars.log_image_probabilities[:len(data)]
-              
-            # 计算 batch loss
-            # 使用sigmoid输出直接计算概率
-            normalized_probs = predicted_probs / predicted_probs.sum(dim=1, keepdim=True)
-            batch_loss = torch.sum(-target * torch.log(normalized_probs + 1e-7), dim=-1).mean()
-
-            #batch_loss = torch.sum(-target * predicted_probs.log(), dim=-1).mean()
-
-            if torch.isnan(batch_loss):
-                nan_samples = torch.isnan(torch.sum(-target * predicted_probs.log(), dim=-1))
-                print("NaN detected in loss calculation!")
-                print("Samples causing NaN:")
-                for i in range(len(nan_samples)):
-                    if nan_samples[i]:
-                        print(f"Sample {i}:")
-                        print(f"  Target: {target[i]}")
-                        print(f"  Predicted probabilities: {predicted_probs[i]}")
-                        print(f"  Log probabilities: {predicted_probs[i].log()}")
-                raise ValueError("NaN detected in loss calculation")
-
-            # 统计训练正确率（如果需要）
-            predicted_labels = predicted_probs.argmax(dim=1)
-            train_correct += (predicted_labels == target.argmax(dim=1)).sum().item()
+            outputs=model(data)
+ 
+            batch_loss = torch.sum(-target * F.log_softmax(outputs, dim=-1), dim=-1).mean()
+            
+            train_correct += (outputs.argmax(dim=1) == target.argmax(dim=1)).sum().item()
             train_total += len(target)
 
         # 使用 scaler 来缩放损失并执行反向传播
@@ -116,15 +93,13 @@ for epoch in range(global_vars.num_epochs):
 
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(valid_data):
+            global_vars.initialize_image_probabilities(10,False)
             data, target = data.to(device), target.to(device)
-            model(data)
-            
-            # 获取当前批次的预测对数概率
-            predicted_probs = global_vars.log_image_probabilities[:len(data)]
-
+            outputs=model(data)
+   
             # 获取预测标签（在对数空间中，最大值对应原空间的最大概率）
-            predicted_labels = predicted_probs.argmax(dim=1)
-            
+            predicted_labels = outputs.argmax(dim=1)
+
             # 计算正确预测的数量
             total_correct += (predicted_labels == target).sum().item()
             total_samples += len(target)

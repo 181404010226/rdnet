@@ -38,29 +38,23 @@ class DecisionNode(nn.Module):
             self.right(x, labels, sample_idx)
 
 
-
-
-class DecisionTree(nn.Module):
+class SequentialDecisionTree(nn.Module):
     def __init__(self):
-        super(DecisionTree, self).__init__()
+        super(SequentialDecisionTree, self).__init__()
         
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        
-        # Build the decision tree with English names
-        self.root = DecisionNode("Industrial vs Natural", judge=[[0,1,8,9],[2,3,4,5,6,7]], depth=0,
-            left=DecisionNode("Sky vs Land", judge=[[0,8],[1,9]], depth=1,
-                left=DecisionNode("Airplane vs Ship", judge=[[0],[8]], depth=2, left=None, right=None),
-                right=DecisionNode("Car vs Truck", judge=[[1],[9]], depth=2, left=None, right=None)),
-            right=DecisionNode("Others vs Quadrupeds", judge=[[2,6],[3,4,5,7]], depth=1,
-                left=DecisionNode("Bird vs Frog", judge=[[2],[6]], depth=2, left=None, right=None),
-                right=DecisionNode("Cat/Dog vs Deer/Horse", judge=[[3,5],[4,7]], depth=2,
-                    left=DecisionNode("Cat vs Dog", judge=[[3],[5]], depth=3, left=None, right=None),
-                    right=DecisionNode("Deer vs Horse", judge=[[4],[7]], depth=3, left=None, right=None)
-                ),
-            )
-        )
-
+        self.nodes = nn.ModuleList([
+            DecisionNode("Industrial vs Natural", judge=[[0,1,8,9],[2,3,4,5,6,7]]),
+            DecisionNode("Sky vs Land", judge=[[0,8],[1,9]]),
+            DecisionNode("Airplane vs Ship", judge=[[0],[8]]),
+            DecisionNode("Car vs Truck", judge=[[1],[9]]),
+            DecisionNode("Others vs Quadrupeds", judge=[[2,6],[3,4,5,7]]),
+            DecisionNode("Bird vs Frog", judge=[[2],[6]]),
+            DecisionNode("Cat/Dog vs Deer/Horse", judge=[[3,5],[4,7]]),
+            DecisionNode("Cat vs Dog", judge=[[3],[5]]),
+            DecisionNode("Deer vs Horse", judge=[[4],[7]])
+        ])
+    
     def forward(self, x):
-
-        return self.root(x)
+        for node in self.nodes:
+            node(x)
+        return x  # 或者返回 global_vars 中的结果

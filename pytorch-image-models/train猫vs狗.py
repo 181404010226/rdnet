@@ -476,6 +476,24 @@ def main():
 
     # setup learning rate schedule and starting epoch
     lr_scheduler, num_epochs = create_scheduler(args, optimizer)
+    if args.local_rank == 0:
+        scheduler_params = {
+            'sched': args.sched,
+            'num_epochs': args.epochs,
+            'decay_epochs': args.decay_epochs,
+            'decay_rate': args.decay_rate,
+            'min_lr': args.min_lr,
+            'warmup_lr': args.warmup_lr,
+            'warmup_epochs': args.warmup_epochs,
+            'cooldown_epochs': args.cooldown_epochs,
+            'patience_epochs': args.patience_epochs,
+            'lr_cycle_mul': args.lr_cycle_mul,
+            'lr_cycle_decay': args.lr_cycle_decay,
+            'lr_cycle_limit': args.lr_cycle_limit,
+            'lr_k_decay': args.lr_k_decay,
+        }
+        _logger.info(f'Scheduler parameters: {scheduler_params}')
+
     start_epoch = 0
     if args.start_epoch is not None:
         # a specified start_epoch will always override the resume epoch
@@ -539,8 +557,10 @@ def main():
         if args.prefetcher:
             assert not num_aug_splits  # collate conflict (need to support deinterleaving in collate mixup)
             collate_fn = FastCollateMixup(**mixup_args)
+            print("FastCollateMixup")
         else:
             mixup_fn = Mixup(**mixup_args)
+            print("Mixup")
 
     # wrap dataset in AugMix helper
     if num_aug_splits > 1:
@@ -550,6 +570,34 @@ def main():
     train_interpolation = args.train_interpolation
     if args.no_aug or not train_interpolation:
         train_interpolation = data_config['interpolation']
+    print("dataset_train:", dataset_train)
+    print("input_size:", data_config['input_size'])
+    print("batch_size:", args.batch_size)
+    print("is_training:", True)
+    print("use_prefetcher:", args.prefetcher)
+    print("no_aug:", args.no_aug)
+    print("re_prob:", args.reprob)
+    print("re_mode:", args.remode)
+    print("re_count:", args.recount)
+    print("re_split:", args.resplit)
+    print("scale:", args.scale)
+    print("ratio:", args.ratio)
+    print("hflip:", args.hflip)
+    print("vflip:", args.vflip)
+    print("color_jitter:", args.color_jitter)
+    print("auto_augment:", args.aa)
+    print("num_aug_repeats:", args.aug_repeats)
+    print("num_aug_splits:", num_aug_splits)
+    print("interpolation:", train_interpolation)
+    print("mean:", data_config['mean'])
+    print("std:", data_config['std'])
+    print("num_workers:", args.workers)
+    print("distributed:", args.distributed)
+    print("collate_fn:", collate_fn)
+    print("pin_memory:", args.pin_mem)
+    print("use_multi_epochs_loader:", args.use_multi_epochs_loader)
+    print("worker_seeding:", args.worker_seeding)
+
     loader_train = create_loader(
         dataset_train,
         input_size=data_config['input_size'],
@@ -579,6 +627,7 @@ def main():
         use_multi_epochs_loader=args.use_multi_epochs_loader,
         worker_seeding=args.worker_seeding,
     )
+    
 
     loader_eval = create_loader(
         dataset_eval,

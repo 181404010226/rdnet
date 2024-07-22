@@ -5,9 +5,33 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/train飞机vs轮船.py",
-            "args": ["./data", "--model", "convmixer_256_8_binary", "--num-classes", "2", "-b", "256", "--opt", "adamw", "--epochs", "375", "--sched", "onecycle", "--lr", "0.01", "--amp", "--input-size", "3", "32", "32", "--aa", "rand-m9-mstd0.5-inc1", "--cutmix", "0.5", "--mixup", "0.5", "--reprob", "0.25", "--remode", "pixel", "--scale", "0.75", "1.0", "--warmup-epochs", "0", "--opt-eps", "1e-3", "--clip-grad", "1.0"],
-            "console": "integratedTerminal"
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [
+                "./data",
+                "--model", "convmixer_256_8_7_1",
+                "--num-classes", "2",
+                "-b", "2",
+                "-j", "8",
+                "--opt", "adamw",
+                "--epochs", "1600",
+                "--sched", "onecycle",
+                "--lr", "0.01",
+                "--amp",
+                "--input-size", "3", "32", "32",
+                "--aa", "rand-m3-n3-mstd0.5-inc1",
+                "--cutmix", "0.75",
+                "--mixup", "0.25",
+                "--reprob", "0.1",
+                "--remode", "pixel",
+                "--recount", "2",
+                "--scale", "0.75", "1.0",
+                "--warmup-epochs", "0",
+                "--opt-eps", "1e-3",
+                "--clip-grad", "1.0",
+                "--pin-mem",
+                "--ratio", "0.5", "1.5"
+            ]
         }
     ]
 }

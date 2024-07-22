@@ -45,13 +45,12 @@ class BinaryConvMixer(nn.Module):
             else:
                 new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
             self.model.load_state_dict(new_state_dict)
-        self.model.eval()
         self.epsilon = 1e-7
-        self.sensitivity = sensitivity
 
     def forward(self, x):
         x = self.model(x)
-        x = F.softmax(x, dim=1) + self.epsilon
+        x = torch.sigmoid(x)
+        # x = F.softmax(x, dim=1) + self.epsilon
 
         return x
 
