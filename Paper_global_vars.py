@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class GlobalVars:
     def __init__(self):
-        self.num_epochs = 500
+        self.num_epochs = 300
         self.train_batch_size = 64
         self.test_batch_size = 1000
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

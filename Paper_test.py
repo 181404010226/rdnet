@@ -43,7 +43,7 @@ clear_directory('/root/autodl-tmp')
 model = SequentialDecisionTree().to(device)
 
 # 加载模型
-model_path = 'best_models/model_epoch_157_acc_0.9287.pth'
+model_path = 'best_models/model_epoch_444_acc_0.9630.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 
 
@@ -57,7 +57,6 @@ class_labels = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 
 
 with torch.no_grad():
     for batch_idx, (data, target) in enumerate(valid_data):
-        global_vars.initialize_image_probabilities(10,False)
         data, target = data.to(device), target.to(device)
         model(data)
         
@@ -84,7 +83,7 @@ with torch.no_grad():
                 img = data[idx].cpu().permute(1, 2, 0).numpy()
                 img = (img - img.min()) / (img.max() - img.min())  # 归一化到 [0, 1]
                 ax1.imshow(img)
-                ax1.set_title('Original Image')
+                ax1.set_title('Raw Image')
                 ax1.axis('off')
                 
                 # 绘制概率分布图

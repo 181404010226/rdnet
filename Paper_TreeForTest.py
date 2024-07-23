@@ -28,8 +28,7 @@ class DecisionNode(nn.Module):
         for idx, (l_prob, r_prob) in enumerate(zip(left_prob, right_prob)):
             if sample_idx is not None:
                 idx = sample_idx[idx]
-            if idx not in self.node_probabilities:
-                self.node_probabilities[idx] = []
+            self.node_probabilities[idx] = []
             self.node_probabilities[idx].append((l_prob.item(), r_prob.item()))
 
         if self.left:
@@ -55,6 +54,7 @@ class SequentialDecisionTree(nn.Module):
         ])
     
     def forward(self, x):
+        global_vars.initialize_image_probabilities(x.size(0))
         for node in self.nodes:
             node(x)
         return x  # 或者返回 global_vars 中的结果
