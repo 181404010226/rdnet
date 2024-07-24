@@ -38,3 +38,4 @@ class SequentialDecisionTree(nn.Module):
     def forward(self, x):
         global_vars.initialize_image_probabilities(x.size(0))
         outputs = [node(x) for node in self.nodes]
+        return outputs

@@ -19,7 +19,7 @@ print(f"Using device: {device}")
 root = os.path.join(os.path.dirname(__file__), "CIFAR10RawData")
 
 # 初始化模型并移至GPU
-model = ConvMixer(dim=256, depth=8, kernel_size=5, patch_size=1, n_classes=10).to(device)
+model = ConvMixer(dim=256, depth=8, kernel_size=9, patch_size=1, n_classes=10).to(device)
 
 optimizer = optim.AdamW(model.parameters(), weight_decay=0.001)
 
@@ -49,7 +49,6 @@ for epoch in range(global_vars.num_epochs):
     train_total = 0
 
     for batch_idx, (data, target) in enumerate(loader_train):
-        global_vars.initialize_image_probabilities(10,True)
         data, target = data.to(device), target.to(device)
         
         # 使用 autocast 上下文管理器
@@ -93,7 +92,6 @@ for epoch in range(global_vars.num_epochs):
 
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(valid_data):
-            global_vars.initialize_image_probabilities(10,False)
             data, target = data.to(device), target.to(device)
             outputs=model(data)
    

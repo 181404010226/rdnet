@@ -49,19 +49,18 @@ class BinaryConvMixer(nn.Module):
 
     def forward(self, x):
         x = self.model(x)
-        x = torch.sigmoid(x)
         # x = F.softmax(x, dim=1) + self.epsilon
 
         return x
 
 # Replace all specific network classes with BinaryConvMixer
-IndustrialVsNaturalNet = lambda: BinaryConvMixer("",256,8,5,1)
-LandVsSkyNet = lambda: BinaryConvMixer("",256,8,5,1)
+IndustrialVsNaturalNet = lambda: BinaryConvMixer("",128,8,5,1)
+LandVsSkyNet = lambda: BinaryConvMixer("",192,8,5,1)
 PlaneVsShipNet = lambda: BinaryConvMixer("",256,8,5,1)
 CarVsTruckNet = lambda: BinaryConvMixer("",256,8,5,1)
-FourLeggedVsOthersNet = lambda: BinaryConvMixer("",256,8,5,1)
-CatDogVsDeerHorseNet = lambda: BinaryConvMixer("",256,8,5,1)
-CatVsDogNet = lambda: BinaryConvMixer("",256,8,5,1)
+FourLeggedVsOthersNet = lambda: BinaryConvMixer("",192,8,5,1)
+CatDogVsDeerHorseNet = lambda: BinaryConvMixer("",192,8,5,1)
+CatVsDogNet = lambda: BinaryConvMixer("",256,16,5,1)
 DeerVsHorseNet = lambda: BinaryConvMixer("",256,8,5,1)
 BirdVsFrogNet = lambda: BinaryConvMixer("",256,8,5,1)
 

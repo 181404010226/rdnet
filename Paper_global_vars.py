@@ -15,6 +15,7 @@ class GlobalVars:
         self.log_image_probabilities = torch.ones(batch_size, 10, device=self.device)
 
     def update_image_probabilities(self, judge, outputs):
+        outputs = torch.sigmoid(outputs)
         self.log_image_probabilities[:, judge[0]] *= outputs[:, 0].unsqueeze(1)
         self.log_image_probabilities[:, judge[1]] *= outputs[:, 1].unsqueeze(1)
 
