@@ -28,9 +28,8 @@ class SequentialDecisionTree(nn.Module):
             DecisionNode("Sky vs Land", judge=[[0,8],[1,9]]),
             DecisionNode("Airplane vs Ship", judge=[[0],[8]]),
             DecisionNode("Car vs Truck", judge=[[1],[9]]),
-            DecisionNode("Others vs Quadrupeds", judge=[[2,6],[3,4,5,7]]),
+            DecisionNode("Others vs Quadrupeds", judge=[[2,6],[3,5],[4,7]]),
             DecisionNode("Bird vs Frog", judge=[[2],[6]]),
-            DecisionNode("Cat/Dog vs Deer/Horse", judge=[[3,5],[4,7]]),
             DecisionNode("Cat vs Dog", judge=[[3],[5]]),
             DecisionNode("Deer vs Horse", judge=[[4],[7]])
         ])

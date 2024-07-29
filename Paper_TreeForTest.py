@@ -20,16 +20,12 @@ class DecisionNode(nn.Module):
 
         global_vars.update_image_probabilities(self.judge, outputs)
 
-        # Calculate probabilities for left and right
-        left_prob = outputs[:, 0]
-        right_prob = outputs[:, 1]
-        
         # Store probabilities for each sample
-        for idx, (l_prob, r_prob) in enumerate(zip(left_prob, right_prob)):
+        for idx, prob in enumerate(outputs):
             if sample_idx is not None:
                 idx = sample_idx[idx]
             self.node_probabilities[idx] = []
-            self.node_probabilities[idx].append((l_prob.item(), r_prob.item()))
+            self.node_probabilities[idx].append(prob.tolist())
 
         if self.left:
             self.left(x, labels, sample_idx)
@@ -46,9 +42,8 @@ class SequentialDecisionTree(nn.Module):
             DecisionNode("Sky vs Land", judge=[[0,8],[1,9]]),
             DecisionNode("Airplane vs Ship", judge=[[0],[8]]),
             DecisionNode("Car vs Truck", judge=[[1],[9]]),
-            DecisionNode("Others vs Quadrupeds", judge=[[2,6],[3,4,5,7]]),
+            DecisionNode("Others vs Quadrupeds", judge=[[2,6],[3,5],[4,7]]),
             DecisionNode("Bird vs Frog", judge=[[2],[6]]),
-            DecisionNode("Cat/Dog vs Deer/Horse", judge=[[3,5],[4,7]]),
             DecisionNode("Cat vs Dog", judge=[[3],[5]]),
             DecisionNode("Deer vs Horse", judge=[[4],[7]])
         ])

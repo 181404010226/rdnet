@@ -19,7 +19,7 @@ root = os.path.join(os.path.dirname(__file__), "CIFAR10RawData")
 
 # 初始化模型并移至GPU
 model = SequentialDecisionTree().to(device)
-# model.load_state_dict(torch.load("best_models/model_epoch_180_acc_0.9373.pth"))
+# model.load_state_dict(torch.load("best_models/model_epoch_932_acc_0.9686.pth"))
 # model = ConvMixer(dim=256, depth=8, kernel_size=5, patch_size=1, n_classes=10).to(device)
 
 optimizer = optim.AdamW(model.parameters(), weight_decay=0.001)
@@ -29,11 +29,13 @@ scheduler = optim.lr_scheduler.OneCycleLR(
             optimizer=optimizer,
             max_lr=0.005,
             total_steps=global_vars.num_epochs,
-            pct_start=0.3,
+            pct_start=0.1,
             anneal_strategy='cos',
             cycle_momentum=True,
             base_momentum=0.85,
             max_momentum=0.95,
+            #div_factor=100,
+            #final_div_factor=25,
         )
 
 best_models = []
@@ -56,7 +58,7 @@ for epoch in range(global_vars.num_epochs):
         # 使用 autocast 上下文管理器
         with autocast():
 
-            model(data)
+            outputs = model(data)
 
             predicted_probs = global_vars.log_image_probabilities[:len(data)]
               

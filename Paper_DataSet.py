@@ -114,7 +114,8 @@ if __name__ == "__main__":
 
     for batch in range(3):
         # 获取一批训练数据
-        data_iter = iter(loader_train)
+        # data_iter = iter(loader_train)
+        data_iter = iter(valid_data)
         images, labels = next(data_iter)
 
         # 保存标签

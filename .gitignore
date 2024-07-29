@@ -33,6 +33,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+saved_images_batxg_0/
+saved_images_batxg_1/
+saved_images_batxg_2/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

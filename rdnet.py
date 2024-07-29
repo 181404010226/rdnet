@@ -304,9 +304,9 @@ def _create_rdnet(variant, pretrained=False, **kwargs):
 def _cfg(url='', **kwargs):
     return {
         "url": url,
-        "num_classes": 1000,
-        "input_size": (3, 224, 224),
-        "crop_pct": 0.9,
+        "num_classes": 10,
+        "input_size": (3, 32, 32),
+        "crop_pct": 0.96,
         "interpolation": "bicubic",
         "mean": IMAGENET_DEFAULT_MEAN,
         "std": IMAGENET_DEFAULT_STD,

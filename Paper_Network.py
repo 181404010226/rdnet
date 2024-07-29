@@ -34,9 +34,9 @@ def ConvMixer(dim=256, depth=8, kernel_size=5, patch_size=2, n_classes=2):
     )
 
 class BinaryConvMixer(nn.Module):
-    def __init__(self, model_path,dim,depth,kernel_size,patch_size):
+    def __init__(self, model_path, dim, depth, kernel_size, patch_size, n_classes=2):
         super(BinaryConvMixer, self).__init__()
-        self.model = ConvMixer(dim,depth,kernel_size,patch_size).to(device)
+        self.model = ConvMixer(dim, depth, kernel_size, patch_size, n_classes=n_classes).to(device)
         if os.path.exists(model_path):
             state_dict = torch.load(model_path, map_location=device)
             # Remove the 'module.' prefix from state dict keys
@@ -49,18 +49,22 @@ class BinaryConvMixer(nn.Module):
 
     def forward(self, x):
         x = self.model(x)
-        # x = F.softmax(x, dim=1) + self.epsilon
-
+        if torch.isnan(x).any():
+            print(f"Warning: NaN values detected in output")
+            print("Detailed output values:")
+            for i, batch in enumerate(x):
+                print(f"Batch {i}: {batch.tolist()}")
+        x = torch.sigmoid(x)
         return x
 
 # Replace all specific network classes with BinaryConvMixer
-IndustrialVsNaturalNet = lambda: BinaryConvMixer("",128,8,5,1)
-LandVsSkyNet = lambda: BinaryConvMixer("",192,8,5,1)
+IndustrialVsNaturalNet = lambda: BinaryConvMixer("",256,8,5,1)
+LandVsSkyNet = lambda: BinaryConvMixer("",256,8,5,1)
 PlaneVsShipNet = lambda: BinaryConvMixer("",256,8,5,1)
 CarVsTruckNet = lambda: BinaryConvMixer("",256,8,5,1)
-FourLeggedVsOthersNet = lambda: BinaryConvMixer("",192,8,5,1)
-CatDogVsDeerHorseNet = lambda: BinaryConvMixer("",192,8,5,1)
-CatVsDogNet = lambda: BinaryConvMixer("",256,16,5,1)
+FourLeggedVsOthersNet = lambda: BinaryConvMixer("",256,8,5,1,3)
+CatDogVsDeerHorseNet = lambda: BinaryConvMixer("",256,8,5,1)
+CatVsDogNet = lambda: BinaryConvMixer("",256,8,5,1)
 DeerVsHorseNet = lambda: BinaryConvMixer("",256,8,5,1)
 BirdVsFrogNet = lambda: BinaryConvMixer("",256,8,5,1)
 

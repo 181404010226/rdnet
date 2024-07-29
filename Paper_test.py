@@ -8,6 +8,7 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 from collections import defaultdict
+import torch.nn.functional as F
 
 # 设置随机种子
 seed = 42
@@ -43,7 +44,7 @@ clear_directory('/root/autodl-tmp')
 model = SequentialDecisionTree().to(device)
 
 # 加载模型
-model_path = 'best_models/model_epoch_444_acc_0.9630.pth'
+model_path = 'best_models/model_epoch_443_acc_0.9642.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 
 
@@ -54,13 +55,17 @@ total_correct = 0
 confusion_dict = defaultdict(int)
 class_labels = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
+sample_count = 0
+fig = plt.figure(figsize=(30, 15))
+gs = fig.add_gridspec(3, 3, width_ratios=[1, 2, 2])
+axes = [[fig.add_subplot(gs[i, j]) for j in range(3)] for i in range(3)]
+fig.tight_layout(pad=5.0)
 
 with torch.no_grad():
     for batch_idx, (data, target) in enumerate(valid_data):
         data, target = data.to(device), target.to(device)
         model(data)
         
-        # 遍历当前batch中的每个样本
         for idx, true_label in enumerate(target):
             predicted_probs = global_vars.log_image_probabilities[idx]
             predicted_label = predicted_probs.argmax().item()
@@ -71,84 +76,68 @@ with torch.no_grad():
                 confusion_pair = (class_labels[true_label.item()], class_labels[predicted_label])
                 confusion_dict[confusion_pair] += 1
 
+
+            if not is_correct:
+                row = sample_count % 3
                 
-            if not is_correct or batch_idx == 0:
-                # Create two separate figures
-                fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
-                fig2, ax3 = plt.subplots(figsize=(10, 5))
-                
-                fig1.suptitle(f'Batch {batch_idx}, Sample {idx}, True: {class_labels[true_label.item()]}, Pred: {class_labels[predicted_label]}')
-                
-                # 显示原始图片
+                # Raw Image
                 img = data[idx].cpu().permute(1, 2, 0).numpy()
-                img = (img - img.min()) / (img.max() - img.min())  # 归一化到 [0, 1]
-                ax1.imshow(img)
-                ax1.set_title('Raw Image')
-                ax1.axis('off')
+                img = (img - img.min()) / (img.max() - img.min())
+                axes[row][0].imshow(img)
+                axes[row][0].set_title('Raw Image', fontsize=20)
+                axes[row][0].axis('off')
                 
-                # 绘制概率分布图
+                # Probability Distribution
                 probs_np = predicted_probs.cpu().numpy()
-                bars = ax2.bar(class_labels, probs_np)
-                ax2.set_title('Probability Distribution')
-                ax2.set_xlabel('Class')
-                ax2.set_ylabel('Probability')
-                ax2.tick_params(axis='x', rotation=45)
+                axes[row][1].bar(range(len(class_labels)), probs_np)
+                axes[row][1].set_title('Probability Distribution', fontsize=20)
+                axes[row][1].set_ylim(0, 1)
+                axes[row][1].tick_params(axis='y', labelsize=16)
+                axes[row][1].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)  # Remove x-axis ticks
                 
-                # 在柱状图上方标记真实概率
-                for bar, prob in zip(bars, probs_np):
-                    height = bar.get_height()
-                    ax2.text(bar.get_x() + bar.get_width() / 2.0, height, f'{prob:.4f}', ha='center', va='bottom')
                 
-                # Node probabilities plot
-                ax3.set_title('Node Probabilities')
-                ax3.set_xlabel('Node')
-                ax3.set_ylabel('Probability')
-                
-                node_names = []
-                left_probs = []
-                right_probs = []
+                # Node Probabilities
+                node_names, all_probs = [], []
                 
                 def traverse_tree(nodes):
                     for node in nodes:
                         if node and idx in node.node_probabilities:
                             node_names.append(node.english_name)
-                        left_prob, right_prob = node.node_probabilities[idx][0]
-                        left_probs.append(left_prob)
-                        right_probs.append(right_prob)
-                
+                            probs = node.node_probabilities[idx][0]
+                            all_probs.append(probs)
+
                 traverse_tree(model.nodes)
-                
+
                 x = range(len(node_names))
-                width = 0.35
-                left_bars = ax3.bar([i - width/2 for i in x], left_probs, width, label='Left')
-                right_bars = ax3.bar([i + width/2 for i in x], right_probs, width, label='Right')
-                ax3.set_xticks(x)
-                ax3.set_xticklabels(node_names, rotation=45, ha='right')
-                ax3.legend()
-                
-                # Add accuracy labels to the bars
-                def add_accuracy_labels(bars):
-                    for bar in bars:
-                        height = bar.get_height()
-                        ax3.text(bar.get_x() + bar.get_width() / 2, height,
-                                f'{height:.2f}', ha='center', va='bottom')
-                
-                add_accuracy_labels(left_bars)
-                add_accuracy_labels(right_bars)
-                
-                plt.tight_layout()
-                
-                # Save the two figures separately
-                result = "correct" if is_correct else "error"
-                fig1.savefig(f'/root/autodl-tmp/{result}_analysis_batch_{batch_idx}_sample_{idx}_1.png')
-                fig2.savefig(f'/root/autodl-tmp/{result}_analysis_batch_{batch_idx}_sample_{idx}_2.png')
-                plt.close(fig1)
-                plt.close(fig2)
-            
+                num_outputs = max(len(probs) for probs in all_probs)
+                width = 0.8 / num_outputs
 
-    accuracy = total_correct /  len(valid_data.dataset)
+                axes[row][2].clear()  # Clear the existing subplot
+                for i in range(num_outputs):
+                    probs = [node_probs[i] if i < len(node_probs) else 0 for node_probs in all_probs]
+                    axes[row][2].bar([pos + i * width for pos in x], probs, width, label=f'Output {i+1}')
+
+                axes[row][2].set_title('Node Probabilities', fontsize=20)
+                axes[row][2].set_ylim(0, 1)
+                axes[row][2].tick_params(axis='y', labelsize=16)
+                axes[row][2].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)  # Remove x-axis ticks
+                axes[row][2].legend(fontsize=12, loc='upper right')
+
+                axes[row][0].set_title(f'Batch {batch_idx}, Sample {idx}\nTrue: {class_labels[true_label.item()]}, Pred: {class_labels[predicted_label]}', fontsize=20)
+
+                sample_count += 1
+                
+                if sample_count % 3 == 0 or batch_idx == len(valid_data) - 1:
+                    plt.savefig(f'/root/autodl-tmp/combined_analysis_{sample_count//3}.png', bbox_inches='tight', dpi=300)
+                    plt.close(fig)
+                    if batch_idx < len(valid_data) - 1:
+                        fig = plt.figure(figsize=(30, 15))
+                        gs = fig.add_gridspec(3, 3, width_ratios=[1, 2, 2])
+                        axes = [[fig.add_subplot(gs[i, j]) for j in range(3)] for i in range(3)]
+                        fig.tight_layout(pad=5.0)
+
+    accuracy = total_correct / len(valid_data.dataset)
     print(f"Test Accuracy: {accuracy:.4f}")
-
 
 
 # Create and save pie chart
@@ -160,7 +149,7 @@ sorted_confusions = sorted(confusion_percentages.items(), key=lambda x: x[1], re
 pie_data = []
 pie_labels = []
 other_percentage = 0
-threshold = 1
+threshold = 3
 
 for (true_label, pred_label), percentage in sorted_confusions:
     if percentage >= threshold:
@@ -179,12 +168,17 @@ colors = (base_colors * ((len(pie_data) - 1) // len(base_colors) + 1))[:len(pie_
 if other_percentage > 0:
     colors.append('#999999')  # Gray color for "Others"
 
-# ... existing code ...
+# 设置全局字体大小
+plt.rcParams.update({'font.size': 36})  # 默认字体大小的两倍
 
-plt.figure(figsize=(12, 8))
+plt.figure(figsize=(24, 16))  # 增加图形大小以适应更大的字体
 wedges, texts, autotexts = plt.pie(pie_data, labels=None, autopct='%1.1f%%', startangle=90, 
                                    wedgeprops=dict(width=0.6), textprops=dict(color="k"),
                                    colors=colors)
+
+# 增加自动百分比文本的字体大小
+for autotext in autotexts:
+    autotext.set_fontsize(20)
 
 # Add lines connecting wedges to labels
 for i, wedge in enumerate(wedges):
@@ -199,9 +193,10 @@ for i, wedge in enumerate(wedges):
                  horizontalalignment=horizontalalignment,
                  verticalalignment="center",
                  arrowprops=dict(arrowstyle="-", color="0.5",
-                                 connectionstyle=connectionstyle))
+                                 connectionstyle=connectionstyle),
+                 fontsize=48)  # 增加注释文本的字体大小
 
-plt.title(f"Confusion Distribution (>{threshold}%)")
+plt.title(f"Confusion Distribution (>{threshold}%)", fontsize=48)  # 增加标题字体大小
 plt.axis('equal')
-plt.savefig(f'/root/autodl-tmp/confusion_pie_chart_{threshold}.png', bbox_inches='tight')
+plt.savefig(f'/root/autodl-tmp/confusion_pie_chart_{threshold}.png', bbox_inches='tight', dpi=300)  # 增加DPI以提高图像质量
 plt.close()
